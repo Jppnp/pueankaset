@@ -1,0 +1,39 @@
+appId: com.pueankaset.pos
+productName: เพื่อนเกษตร POS
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.*'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!store.db'
+asarUnpack:
+  - node_modules/better-sqlite3/**
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  executableName: pueankaset
+nsis:
+  artifactName: pueankaset-${version}-setup.${ext}
+  shortcutName: เพื่อนเกษตร POS
+  uninstallDisplayName: เพื่อนเกษตร POS
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  entitlementsInherit: build/entitlements.mac.plist
+dmg:
+  artifactName: pueankaset-${version}.${ext}
+publish:
+  provider: github
+  owner: jppnp
+  repo: pueankaset
