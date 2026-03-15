@@ -17,6 +17,7 @@ export function useHistory() {
       pageSize?: number
       dateFrom?: string
       dateTo?: string
+      storeId?: number
     }) => {
       setLoading(true)
       try {
@@ -24,7 +25,8 @@ export function useHistory() {
           page: params.page,
           pageSize: params.pageSize ?? 20,
           dateFrom: params.dateFrom,
-          dateTo: params.dateTo
+          dateTo: params.dateTo,
+          storeId: params.storeId
         })
         setSales(result)
       } finally {
@@ -34,8 +36,8 @@ export function useHistory() {
     []
   )
 
-  const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string) => {
-    const result = await window.api.getProfitSummary(dateFrom, dateTo)
+  const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string, storeId?: number) => {
+    const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId)
     setProfitSummary(result)
   }, [])
 

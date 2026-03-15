@@ -7,6 +7,7 @@ import { registerSaleHandlers } from './ipc/sales'
 import { registerParkedOrderHandlers } from './ipc/parked-orders'
 import { registerPrinterHandlers } from './ipc/printer'
 import { registerImportHandlers } from './ipc/import'
+import { registerStoreHandlers } from './ipc/stores'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -48,6 +49,7 @@ app.whenReady().then(() => {
   registerParkedOrderHandlers()
   registerPrinterHandlers()
   registerImportHandlers()
+  registerStoreHandlers()
 
   createWindow()
 

@@ -2,17 +2,23 @@ import { ipcMain } from 'electron'
 import { getDb } from '../database'
 
 export function registerProductHandlers(): void {
-  ipcMain.handle('products:list', (_event, query?: string) => {
+  ipcMain.handle('products:list', (_event, query?: string, storeId?: number) => {
     const db = getDb()
+    const conditions: string[] = []
+    const params: unknown[] = []
+
+    if (storeId) {
+      conditions.push('store_id = ?')
+      params.push(storeId)
+    }
     if (query && query.trim()) {
       const term = `%${query.trim()}%`
-      return db
-        .prepare(
-          `SELECT * FROM products WHERE name LIKE ? OR description LIKE ? ORDER BY name`
-        )
-        .all(term, term)
+      conditions.push('(name LIKE ? OR description LIKE ?)')
+      params.push(term, term)
     }
-    return db.prepare('SELECT * FROM products ORDER BY name').all()
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    return db.prepare(`SELECT * FROM products ${where} ORDER BY name`).all(...params)
   })
 
   ipcMain.handle('products:get', (_event, id: number) => {
@@ -31,13 +37,14 @@ export function registerProductHandlers(): void {
         sale_price: number
         stock_on_hand: number
         exclude_from_profit: number
+        store_id: number
       }
     ) => {
       const db = getDb()
       const result = db
         .prepare(
-          `INSERT INTO products (name, description, cost_price, sale_price, stock_on_hand, exclude_from_profit)
-         VALUES (?, ?, ?, ?, ?, ?)`
+          `INSERT INTO products (name, description, cost_price, sale_price, stock_on_hand, exclude_from_profit, store_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           product.name,
@@ -45,7 +52,8 @@ export function registerProductHandlers(): void {
           product.cost_price,
           product.sale_price,
           product.stock_on_hand,
-          product.exclude_from_profit
+          product.exclude_from_profit,
+          product.store_id ?? 1
         )
       return db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid)
     }
@@ -61,7 +69,8 @@ export function registerProductHandlers(): void {
         'cost_price',
         'sale_price',
         'stock_on_hand',
-        'exclude_from_profit'
+        'exclude_from_profit',
+        'store_id'
       ]
       const fields: string[] = []
       const values: unknown[] = []

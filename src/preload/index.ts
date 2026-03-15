@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
   // Products
-  getProducts: (query?: string) => ipcRenderer.invoke('products:list', query),
+  getProducts: (query?: string, storeId?: number) => ipcRenderer.invoke('products:list', query, storeId),
   getProduct: (id: number) => ipcRenderer.invoke('products:get', id),
   createProduct: (product: Record<string, unknown>) =>
     ipcRenderer.invoke('products:create', product),
@@ -18,10 +18,15 @@ const api = {
     pageSize: number
     dateFrom?: string
     dateTo?: string
+    storeId?: number
   }) => ipcRenderer.invoke('sales:list', params),
   getSaleDetail: (id: number) => ipcRenderer.invoke('sales:detail', id),
-  getProfitSummary: (dateFrom?: string, dateTo?: string) =>
-    ipcRenderer.invoke('sales:profit', dateFrom, dateTo),
+  getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number) =>
+    ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId),
+
+  // Stores
+  getStores: () => ipcRenderer.invoke('stores:list'),
+  createStore: (name: string) => ipcRenderer.invoke('stores:create', name),
 
   // Parked Orders
   parkOrder: (label: string | null, items: unknown[]) =>
@@ -33,7 +38,8 @@ const api = {
   printReceipt: (saleId: number) => ipcRenderer.invoke('printer:print', saleId),
 
   // Import
-  importFromStore: (filePath: string) => ipcRenderer.invoke('import:from-store', filePath),
+  importFromStore: (filePath: string, storeId: number) =>
+    ipcRenderer.invoke('import:from-store', filePath, storeId),
   selectFile: () => ipcRenderer.invoke('import:select-file'),
   getDbInfo: () => ipcRenderer.invoke('import:db-info')
 }

@@ -1,14 +1,16 @@
 import React from 'react'
-import type { Product } from '../../lib/types'
+import type { Product, Store } from '../../lib/types'
 import { formatBaht } from '../../lib/format'
 
 interface ProductTableProps {
   products: Product[]
+  stores: Store[]
   loading: boolean
   onEdit: (product: Product) => void
 }
 
-export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
+export function ProductTable({ products, stores, loading, onEdit }: ProductTableProps) {
+  const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.name]))
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-400">
@@ -24,6 +26,7 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
           <tr className="bg-gray-50 text-left text-sm text-gray-600">
             <th className="px-4 py-3 font-medium">ชื่อสินค้า</th>
             <th className="px-4 py-3 font-medium">รายละเอียด</th>
+            <th className="px-4 py-3 font-medium">ร้านค้า</th>
             <th className="px-4 py-3 font-medium text-right">ราคาทุน</th>
             <th className="px-4 py-3 font-medium text-right">ราคาขาย</th>
             <th className="px-4 py-3 font-medium text-right">คงเหลือ</th>
@@ -37,6 +40,9 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
               <td className="px-4 py-3 font-medium">{product.name}</td>
               <td className="px-4 py-3 text-sm text-gray-500">
                 {product.description || '-'}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {storeMap[product.store_id] ?? '-'}
               </td>
               <td className="px-4 py-3 text-right text-sm">
                 {formatBaht(product.cost_price)}

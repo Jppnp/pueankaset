@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Product } from '../lib/types'
 
-export function useProducts(initialQuery?: string) {
+export function useProducts(initialQuery?: string, initialStoreId?: number) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
 
-  const fetchProducts = useCallback(async (query?: string) => {
+  const fetchProducts = useCallback(async (query?: string, storeId?: number) => {
     setLoading(true)
     try {
-      const result = await window.api.getProducts(query)
+      const result = await window.api.getProducts(query, storeId)
       setProducts(result)
     } finally {
       setLoading(false)
@@ -16,8 +16,8 @@ export function useProducts(initialQuery?: string) {
   }, [])
 
   useEffect(() => {
-    fetchProducts(initialQuery)
-  }, [fetchProducts, initialQuery])
+    fetchProducts(initialQuery, initialStoreId)
+  }, [fetchProducts, initialQuery, initialStoreId])
 
   return { products, loading, refetch: fetchProducts }
 }

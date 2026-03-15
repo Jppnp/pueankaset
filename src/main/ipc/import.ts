@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import { getDb } from '../database'
 
 export function registerImportHandlers(): void {
-  ipcMain.handle('import:from-store', (_event, filePath: string) => {
+  ipcMain.handle('import:from-store', (_event, filePath: string, storeId: number) => {
     const db = getDb()
     const sourceDb = new Database(filePath, { readonly: true })
 
@@ -21,12 +21,12 @@ export function registerImportHandlers(): void {
       }[]
 
       const insertProduct = db.prepare(
-        `INSERT OR REPLACE INTO products (id, name, description, cost_price, sale_price, stock_on_hand)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT OR REPLACE INTO products (id, name, description, cost_price, sale_price, stock_on_hand, store_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
 
       for (const p of products) {
-        insertProduct.run(p.id, p.name, p.description, p.cost_price, p.sale_price, p.stockOnHand)
+        insertProduct.run(p.id, p.name, p.description, p.cost_price, p.sale_price, p.stockOnHand, storeId)
       }
 
       // Import sales

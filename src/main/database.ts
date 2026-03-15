@@ -64,6 +64,22 @@ CREATE TABLE IF NOT EXISTS parked_orders (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `
+  },
+  {
+    version: 2,
+    sql: `
+CREATE TABLE IF NOT EXISTS stores (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO stores (id, name) VALUES (1, 'ร้านหลัก');
+
+ALTER TABLE products ADD COLUMN store_id INTEGER DEFAULT 1;
+
+UPDATE products SET store_id = 1 WHERE store_id IS NULL;
+`
   }
 ]
 

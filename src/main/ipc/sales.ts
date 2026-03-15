@@ -50,41 +50,40 @@ export function registerSaleHandlers(): void {
     'sales:list',
     (
       _event,
-      params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string }
+      params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; storeId?: number }
     ) => {
       const db = getDb()
-      const { page, pageSize, dateFrom, dateTo } = params
+      const { page, pageSize, dateFrom, dateTo, storeId } = params
 
       const conditions: string[] = []
-      const whereParams: string[] = []
+      const whereParams: unknown[] = []
 
       if (dateFrom) {
-        conditions.push('date >= ?')
+        conditions.push('s.date >= ?')
         whereParams.push(dateFrom)
       }
       if (dateTo) {
-        conditions.push('date <= ?')
+        conditions.push('s.date <= ?')
         whereParams.push(dateTo)
+      }
+      if (storeId) {
+        conditions.push(
+          'EXISTS (SELECT 1 FROM sale_items si JOIN products p ON p.id = si.product_id WHERE si.sale_id = s.id AND p.store_id = ?)'
+        )
+        whereParams.push(storeId)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
       const countResult = db
-        .prepare(`SELECT COUNT(*) as total FROM sales ${where}`)
+        .prepare(`SELECT COUNT(*) as total FROM sales s ${where}`)
         .get(...whereParams) as { total: number }
 
       const data = db
-        .prepare(
-          `SELECT * FROM sales ${where} ORDER BY date DESC LIMIT ? OFFSET ?`
-        )
+        .prepare(`SELECT s.* FROM sales s ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`)
         .all(...whereParams, pageSize, (page - 1) * pageSize)
 
-      return {
-        data,
-        total: countResult.total,
-        page,
-        pageSize
-      }
+      return { data, total: countResult.total, page, pageSize }
     }
   )
 
@@ -108,20 +107,26 @@ export function registerSaleHandlers(): void {
 
   ipcMain.handle(
     'sales:profit',
-    (_event, dateFrom?: string, dateTo?: string) => {
+    (_event, dateFrom?: string, dateTo?: string, storeId?: number) => {
       const db = getDb()
 
-      let where = ''
-      const whereParams: string[] = []
+      const conditions: string[] = ['p.exclude_from_profit = 0']
+      const whereParams: unknown[] = []
 
       if (dateFrom) {
-        where += ' AND s.date >= ?'
+        conditions.push('s.date >= ?')
         whereParams.push(dateFrom)
       }
       if (dateTo) {
-        where += ' AND s.date <= ?'
+        conditions.push('s.date <= ?')
         whereParams.push(dateTo)
       }
+      if (storeId) {
+        conditions.push('p.store_id = ?')
+        whereParams.push(storeId)
+      }
+
+      const where = `WHERE ${conditions.join(' AND ')}`
 
       const result = db
         .prepare(
@@ -133,7 +138,7 @@ export function registerSaleHandlers(): void {
            FROM sales s
            JOIN sale_items si ON si.sale_id = s.id
            JOIN products p ON p.id = si.product_id
-           WHERE p.exclude_from_profit = 0${where}`
+           ${where}`
         )
         .get(...whereParams)
 

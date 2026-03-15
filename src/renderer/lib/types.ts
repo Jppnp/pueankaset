@@ -1,3 +1,9 @@
+export interface Store {
+  id: number
+  name: string
+  created_at: string
+}
+
 export interface Product {
   id: number
   name: string
@@ -6,6 +12,7 @@ export interface Product {
   sale_price: number
   stock_on_hand: number
   exclude_from_profit: number
+  store_id: number
   created_at: string
   updated_at: string
 }
@@ -79,7 +86,7 @@ export interface CreateSaleResult {
 // IPC API type for contextBridge
 export interface ElectronAPI {
   // Products
-  getProducts: (query?: string) => Promise<Product[]>
+  getProducts: (query?: string, storeId?: number) => Promise<Product[]>
   getProduct: (id: number) => Promise<Product | null>
   createProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => Promise<Product>
   updateProduct: (id: number, product: Partial<Product>) => Promise<Product>
@@ -92,9 +99,14 @@ export interface ElectronAPI {
     pageSize: number
     dateFrom?: string
     dateTo?: string
+    storeId?: number
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
-  getProfitSummary: (dateFrom?: string, dateTo?: string) => Promise<ProfitSummary>
+  getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number) => Promise<ProfitSummary>
+
+  // Stores
+  getStores: () => Promise<Store[]>
+  createStore: (name: string) => Promise<Store>
 
   // Parked Orders
   parkOrder: (label: string | null, items: OrderItem[]) => Promise<ParkedOrder>
@@ -105,7 +117,7 @@ export interface ElectronAPI {
   printReceipt: (saleId: number) => Promise<{ success: boolean; error?: string }>
 
   // Import
-  importFromStore: (filePath: string) => Promise<{ imported: number }>
+  importFromStore: (filePath: string, storeId: number) => Promise<{ imported: number }>
   selectFile: () => Promise<string | null>
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
 }

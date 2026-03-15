@@ -23,7 +23,7 @@ Three-process Electron app using electron-vite:
 ### Main process (`src/main/`)
 - `index.ts` — App entry: creates BrowserWindow, initializes DB, registers all IPC handlers, configures auto-updater
 - `database.ts` — SQLite via better-sqlite3. DB stored in `app.getPath('userData')/pueankaset.db`. Uses WAL mode and versioned migrations (inline in the file, not separate SQL files)
-- `ipc/` — IPC handlers registered via `ipcMain.handle()`. Each file exports a `register*Handlers()` function. Channels are namespaced: `products:*`, `sales:*`, `parked-orders:*`, `printer:*`, `import:*`
+- `ipc/` — IPC handlers registered via `ipcMain.handle()`. Each file exports a `register*Handlers()` function. Channels are namespaced: `products:*`, `sales:*`, `parked-orders:*`, `printer:*`, `import:*`, `stores:*`
 - `printer/` — Receipt generation. `receipt.ts` builds structured receipt lines, `mock.ts` logs to console, `escpos.ts` is a placeholder for real USB printer support
 
 ### Preload (`src/preload/index.ts`)
@@ -43,8 +43,9 @@ Three-process Electron app using electron-vite:
 - `components/stock/` — ProductTable, ProductForm
 - `components/history/` — DateRangeFilter, OrderList, OrderDetail
 
-### Database schema (4 tables)
-- `products` — id, name, description, cost_price, sale_price, stock_on_hand, exclude_from_profit
+### Database schema (5 tables)
+- `stores` — id, name, created_at (added in migration 2; default "ร้านหลัก" seeded at id=1)
+- `products` — id, name, description, cost_price, sale_price, stock_on_hand, exclude_from_profit, store_id (FK to stores)
 - `sales` — id, date, total_amount, remark
 - `sale_items` — id, sale_id, product_id, quantity, price, cost_price (FK to sales and products)
 - `parked_orders` — id, label, items_json, created_at (temporary saved carts)
@@ -55,6 +56,8 @@ Three-process Electron app using electron-vite:
 - **Adding IPC channels**: Create handler in `src/main/ipc/`, register in `src/main/index.ts`, expose in `src/preload/index.ts`, add type to `ElectronAPI` in `src/renderer/lib/types.ts`
 - **Database migrations**: Append to the `migrations` array in `src/database.ts` with incrementing version numbers. Migrations run automatically on app start.
 - **Sales create flow**: `sales:create` runs in a transaction — inserts sale, inserts sale_items, and decrements product stock_on_hand atomically
+- **Store filtering**: Products have a `store_id` FK. `products:list` accepts an optional `storeId` param. `sales:profit` accepts an optional `storeId` to filter the summary to items belonging to that store's products. History and Stock pages both have a store selector dropdown.
+- **Adding a store**: Use the "+ เพิ่มร้านค้า" button on the Stock page, or call `stores:create` IPC. All existing products default to store id=1 ("ร้านหลัก").
 - **better-sqlite3 is unpacked from asar** (`asarUnpack` in electron-builder.yml) because it's a native module
 - **Auto-updater** publishes to GitHub Releases (provider: github, owner: jppnp, repo: pueankaset)
 - Font: Sarabun (Thai-friendly sans-serif), green primary color palette

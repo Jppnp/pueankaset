@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
-import type { Product } from '../../lib/types'
+import type { Product, Store } from '../../lib/types'
 
 interface ProductFormProps {
   open: boolean
   onClose: () => void
-  product: Product | null // null = create mode
+  product: Product | null
+  stores: Store[]
   onSave: (data: {
     name: string
     description: string | null
@@ -13,16 +14,18 @@ interface ProductFormProps {
     sale_price: number
     stock_on_hand: number
     exclude_from_profit: number
+    store_id: number
   }) => void
 }
 
-export function ProductForm({ open, onClose, product, onSave }: ProductFormProps) {
+export function ProductForm({ open, onClose, product, stores, onSave }: ProductFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [costPrice, setCostPrice] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [stock, setStock] = useState('')
   const [exclude, setExclude] = useState(false)
+  const [storeId, setStoreId] = useState(1)
 
   useEffect(() => {
     if (product) {
@@ -32,6 +35,7 @@ export function ProductForm({ open, onClose, product, onSave }: ProductFormProps
       setSalePrice(product.sale_price.toString())
       setStock(product.stock_on_hand.toString())
       setExclude(product.exclude_from_profit === 1)
+      setStoreId(product.store_id ?? 1)
     } else {
       setName('')
       setDescription('')
@@ -39,8 +43,9 @@ export function ProductForm({ open, onClose, product, onSave }: ProductFormProps
       setSalePrice('')
       setStock('0')
       setExclude(false)
+      setStoreId(stores[0]?.id ?? 1)
     }
-  }, [product, open])
+  }, [product, open, stores])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,7 +55,8 @@ export function ProductForm({ open, onClose, product, onSave }: ProductFormProps
       cost_price: parseFloat(costPrice) || 0,
       sale_price: parseFloat(salePrice) || 0,
       stock_on_hand: parseInt(stock) || 0,
-      exclude_from_profit: exclude ? 1 : 0
+      exclude_from_profit: exclude ? 1 : 0,
+      store_id: storeId
     })
   }
 
@@ -119,6 +125,19 @@ export function ProductForm({ open, onClose, product, onSave }: ProductFormProps
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             min="0"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">ร้านค้า</label>
+          <select
+            value={storeId}
+            onChange={(e) => setStoreId(Number(e.target.value))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
 
         <label className="flex items-center gap-2 cursor-pointer">
