@@ -34,12 +34,12 @@ Three-process Electron app using electron-vite:
 - Path alias: `@/*` maps to `src/renderer/*`
 - Three pages: `/` (SalePage), `/stock` (StockPage), `/history` (HistoryPage)
 - `lib/types.ts` — All shared TypeScript interfaces including `ElectronAPI` type declared on `window.api`
-- `lib/format.ts` — Thai date formatting (Buddhist Era) and Baht currency formatting
+- `lib/format.ts` — Thai date formatting (Buddhist Era), Baht currency formatting, and `calcCardFee()` (5% rounded up to nearest 10)
 - `lib/ipc.ts` — Thin wrapper exporting `getApi()` → `window.api`
 - `hooks/` — Custom hooks: `useSale` (cart/checkout state), `useProducts`, `useParkedOrders`, `useHistory`
 - `components/shared/` — Reusable UI: Button, Input, Modal, Pagination
 - `components/layout/` — Sidebar, SaleNotification
-- `components/sale/` — SearchBar, SearchResults, OrderPanel, ParkedOrderBar, CheckoutDialog
+- `components/sale/` — SearchBar, SearchResults, OrderPanel, ParkedOrderBar, CheckoutDialog (includes card payment fee toggle)
 - `components/stock/` — ProductTable, ProductForm
 - `components/history/` — DateRangeFilter, OrderList, OrderDetail
 
@@ -55,7 +55,8 @@ Three-process Electron app using electron-vite:
 
 - **Adding IPC channels**: Create handler in `src/main/ipc/`, register in `src/main/index.ts`, expose in `src/preload/index.ts`, add type to `ElectronAPI` in `src/renderer/lib/types.ts`
 - **Database migrations**: Append to the `migrations` array in `src/database.ts` with incrementing version numbers. Migrations run automatically on app start.
-- **Sales create flow**: `sales:create` runs in a transaction — inserts sale, inserts sale_items, and decrements product stock_on_hand atomically
+- **Sales create flow**: `sales:create` runs in a transaction — inserts sale, inserts sale_items, and decrements product stock_on_hand atomically. Accepts optional `extraAmount` (e.g. card fee) added to `total_amount`.
+- **Card payment fee**: 5% of order total, rounded up to nearest 10 baht (`calcCardFee` in `format.ts`). Toggled in `CheckoutDialog`, passed as `extraAmount` through `useSale.checkout()` → `sales:create` IPC. Receipt shows a `ค่าบริการชำระบัตร` line when fee is present (derived from `total_amount - sum(sale_items)`).
 - **Store filtering**: Products have a `store_id` FK. `products:list` accepts an optional `storeId` param. `sales:profit` accepts an optional `storeId` to filter the summary to items belonging to that store's products. History and Stock pages both have a store selector dropdown.
 - **Adding a store**: Use the "+ เพิ่มร้านค้า" button on the Stock page, or call `stores:create` IPC. All existing products default to store id=1 ("ร้านหลัก").
 - **better-sqlite3 is unpacked from asar** (`asarUnpack` in electron-builder.yml) because it's a native module
