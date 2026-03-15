@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Modal } from '../shared/Modal'
-import { formatBaht } from '../../lib/format'
+import { formatBaht, calcCardFee } from '../../lib/format'
 import type { OrderItem } from '../../lib/types'
 
 interface CheckoutDialogProps {
@@ -8,16 +8,26 @@ interface CheckoutDialogProps {
   onClose: () => void
   items: OrderItem[]
   total: number
-  onConfirm: (options: { remark?: string; print: boolean }) => void
+  onConfirm: (options: { remark?: string; print: boolean; cardFee?: number }) => void
 }
 
 export function CheckoutDialog({ open, onClose, items, total, onConfirm }: CheckoutDialogProps) {
   const [remark, setRemark] = useState('')
   const [print, setPrint] = useState(false)
+  const [payByCard, setPayByCard] = useState(false)
+
+  const cardFee = calcCardFee(total)
+  const grandTotal = payByCard ? total + cardFee : total
 
   const handleConfirm = () => {
-    onConfirm({ remark: remark.trim() || undefined, print })
+    const remarkParts = [remark.trim(), payByCard ? 'ชำระบัตร' : ''].filter(Boolean)
+    onConfirm({
+      remark: remarkParts.join(' | ') || undefined,
+      print,
+      cardFee: payByCard ? cardFee : undefined
+    })
     setRemark('')
+    setPayByCard(false)
   }
 
   return (
@@ -34,11 +44,34 @@ export function CheckoutDialog({ open, onClose, items, total, onConfirm }: Check
               </div>
             ))}
           </div>
-          <div className="border-t mt-3 pt-3 flex justify-between items-center">
-            <span className="text-lg font-semibold">รวม</span>
-            <span className="text-2xl font-bold text-green-700">{formatBaht(total)}</span>
+          <div className="border-t mt-3 pt-3 space-y-1">
+            <div className="flex justify-between items-center text-sm text-gray-600">
+              <span>ยอดสินค้า</span>
+              <span>{formatBaht(total)}</span>
+            </div>
+            {payByCard && (
+              <div className="flex justify-between items-center text-sm text-orange-600">
+                <span>ค่าธรรมเนียมบัตร (5%)</span>
+                <span>+{formatBaht(cardFee)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1 border-t">
+              <span className="text-lg font-semibold">รวมทั้งหมด</span>
+              <span className="text-2xl font-bold text-green-700">{formatBaht(grandTotal)}</span>
+            </div>
           </div>
         </div>
+
+        {/* Card payment toggle */}
+        <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+          <input
+            type="checkbox"
+            checked={payByCard}
+            onChange={(e) => setPayByCard(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          />
+          <span className="text-sm text-gray-700">ชำระด้วยบัตร (บวกค่าธรรมเนียม 5%)</span>
+        </label>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

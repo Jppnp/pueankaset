@@ -1,3 +1,9 @@
+// Calculate card fee: 5% of total, rounded up to nearest 10
+export function calcCardFee(total: number): number {
+  const raw = total * 0.05
+  return Math.ceil(raw / 10) * 10
+}
+
 export function formatBaht(amount: number): string {
   return `฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }

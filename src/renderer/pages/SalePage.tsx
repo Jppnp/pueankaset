@@ -57,8 +57,8 @@ export function SalePage() {
   )
 
   const handleCheckout = useCallback(
-    async (options: { remark?: string; print: boolean }) => {
-      const result = await sale.checkout(options.remark)
+    async (options: { remark?: string; print: boolean; cardFee?: number }) => {
+      const result = await sale.checkout(options.remark, options.cardFee)
       setShowCheckout(false)
       setNotification(result.total)
 

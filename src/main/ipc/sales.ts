@@ -14,12 +14,14 @@ export function registerSaleHandlers(): void {
           cost_price: number
         }[]
         remark?: string
+        extraAmount?: number
       }
     ) => {
       const db = getDb()
 
       const createSale = db.transaction(() => {
-        const total = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        const itemsTotal = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        const total = itemsTotal + (input.extraAmount ?? 0)
 
         const saleResult = db
           .prepare(`INSERT INTO sales (date, total_amount, remark) VALUES (datetime('now'), ?, ?)`)

@@ -76,6 +76,7 @@ export interface CreateSaleInput {
     cost_price: number
   }[]
   remark?: string
+  extraAmount?: number
 }
 
 export interface CreateSaleResult {

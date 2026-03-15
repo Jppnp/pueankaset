@@ -30,6 +30,15 @@ export function buildReceipt(
   }
 
   lines.push({ type: 'separator', content: '================================' })
+
+  const itemsSubtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const cardFee = sale.total_amount - itemsSubtotal
+
+  if (cardFee > 0) {
+    lines.push({ type: 'text', content: `ยอดสินค้า: ${formatBaht(itemsSubtotal)}` })
+    lines.push({ type: 'text', content: `ค่าบริการชำระบัตร: ${formatBaht(cardFee)}` })
+  }
+
   lines.push({
     type: 'total',
     content: `รวม: ${formatBaht(sale.total_amount)}`,

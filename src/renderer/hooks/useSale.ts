@@ -69,7 +69,7 @@ export function useSale() {
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const checkout = useCallback(
-    async (remark?: string): Promise<CreateSaleResult> => {
+    async (remark?: string, extraAmount?: number): Promise<CreateSaleResult> => {
       const result = await window.api.createSale({
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -77,7 +77,8 @@ export function useSale() {
           price: i.price,
           cost_price: i.cost_price
         })),
-        remark
+        remark,
+        extraAmount
       })
       setItems([])
       return result
