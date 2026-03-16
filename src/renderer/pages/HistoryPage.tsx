@@ -5,6 +5,7 @@ import { OrderDetail } from '../components/history/OrderDetail'
 import { Pagination } from '../components/shared/Pagination'
 import { useHistory } from '../hooks/useHistory'
 import { formatBaht, todayRange, thisMonthRange, toISODate } from '../lib/format'
+import { useRole } from '../contexts/RoleContext'
 import type { SaleWithItems, Store } from '../lib/types'
 
 type FilterPreset = 'today' | 'month' | 'custom'
@@ -19,6 +20,7 @@ export function HistoryPage() {
   const [stores, setStores] = useState<Store[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined)
 
+  const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
 
   useEffect(() => {
@@ -144,22 +146,28 @@ export function HistoryPage() {
                 {formatBaht(profitSummary.total_revenue)}
               </p>
             </div>
-            <div>
-              <span className="text-sm text-gray-500">ต้นทุนรวม</span>
-              <p className="text-lg font-semibold text-red-500">
-                {formatBaht(profitSummary.total_cost)}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500">กำไรสุทธิ</span>
-              <p className="text-xl font-bold text-green-600">
-                {formatBaht(profitSummary.total_profit)}
-              </p>
-            </div>
+            {isOwner && (
+              <>
+                <div>
+                  <span className="text-sm text-gray-500">ต้นทุนรวม</span>
+                  <p className="text-lg font-semibold text-red-500">
+                    {formatBaht(profitSummary.total_cost)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">กำไรสุทธิ</span>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatBaht(profitSummary.total_profit)}
+                  </p>
+                </div>
+              </>
+            )}
             <div className="text-xs text-gray-400 ml-auto">
               {selectedStoreId
                 ? `* แสดงเฉพาะ: ${stores.find((s) => s.id === selectedStoreId)?.name}`
-                : '* ไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร'}
+                : isOwner
+                  ? '* ไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร'
+                  : ''}
             </div>
           </div>
         </div>

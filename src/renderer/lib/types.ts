@@ -1,3 +1,5 @@
+export type Role = 'owner' | 'employee'
+
 export interface Store {
   id: number
   name: string
@@ -22,6 +24,7 @@ export interface Sale {
   date: string
   total_amount: number
   remark: string | null
+  seller_role: Role
 }
 
 export interface SaleItem {
@@ -77,6 +80,7 @@ export interface CreateSaleInput {
   }[]
   remark?: string
   extraAmount?: number
+  sellerRole: Role
 }
 
 export interface CreateSaleResult {
@@ -121,6 +125,13 @@ export interface ElectronAPI {
   importFromStore: (filePath: string, storeId: number) => Promise<{ imported: number }>
   selectFile: () => Promise<string | null>
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
+
+  // Auth
+  verifyOwnerPassword: (password: string) => Promise<boolean>
+  changeOwnerPassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; error?: string }>
 }
 
 declare global {

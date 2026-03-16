@@ -80,6 +80,19 @@ ALTER TABLE products ADD COLUMN store_id INTEGER DEFAULT 1;
 
 UPDATE products SET store_id = 1 WHERE store_id IS NULL;
 `
+  },
+  {
+    version: 3,
+    sql: `
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO app_settings (key, value) VALUES ('owner_password', '1234');
+
+ALTER TABLE sales ADD COLUMN seller_role TEXT NOT NULL DEFAULT 'owner';
+`
   }
 ]
 
