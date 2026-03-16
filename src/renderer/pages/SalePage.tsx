@@ -8,6 +8,7 @@ import { SaleNotification } from '../components/layout/SaleNotification'
 import { useProductSearch } from '../hooks/useProducts'
 import { useSale } from '../hooks/useSale'
 import { useParkedOrders } from '../hooks/useParkedOrders'
+import { useRole } from '../contexts/RoleContext'
 import type { Product } from '../lib/types'
 
 export function SalePage() {
@@ -18,6 +19,7 @@ export function SalePage() {
   const { results, loading, search, clear } = useProductSearch()
   const sale = useSale()
   const parked = useParkedOrders()
+  const { role } = useRole()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -58,7 +60,7 @@ export function SalePage() {
 
   const handleCheckout = useCallback(
     async (options: { remark?: string; print: boolean; cardFee?: number }) => {
-      const result = await sale.checkout(options.remark, options.cardFee)
+      const result = await sale.checkout(options.remark, options.cardFee, role ?? 'owner')
       setShowCheckout(false)
       setNotification(result.total)
 
@@ -66,7 +68,7 @@ export function SalePage() {
         await window.api.printReceipt(result.saleId)
       }
     },
-    [sale]
+    [sale, role]
   )
 
   return (

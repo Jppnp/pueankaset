@@ -32,7 +32,12 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
               </span>
               <p className="text-xs text-gray-500">{formatThaiDate(sale.date)}</p>
             </div>
-            <span className="font-semibold text-green-700">{formatBaht(sale.total_amount)}</span>
+            <div className="text-right">
+              <span className="font-semibold text-green-700">{formatBaht(sale.total_amount)}</span>
+              <p className="text-xs text-gray-400">
+                {sale.seller_role === 'owner' ? 'เจ้าของร้าน' : 'พนักงาน'}
+              </p>
+            </div>
           </div>
           {sale.remark && (
             <p className="text-xs text-gray-400 mt-1">{sale.remark}</p>

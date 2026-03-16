@@ -41,7 +41,12 @@ const api = {
   importFromStore: (filePath: string, storeId: number) =>
     ipcRenderer.invoke('import:from-store', filePath, storeId),
   selectFile: () => ipcRenderer.invoke('import:select-file'),
-  getDbInfo: () => ipcRenderer.invoke('import:db-info')
+  getDbInfo: () => ipcRenderer.invoke('import:db-info'),
+
+  // Auth
+  verifyOwnerPassword: (password: string) => ipcRenderer.invoke('auth:verify-password', password),
+  changeOwnerPassword: (currentPassword: string, newPassword: string) =>
+    ipcRenderer.invoke('auth:change-password', currentPassword, newPassword)
 }
 
 contextBridge.exposeInMainWorld('api', api)

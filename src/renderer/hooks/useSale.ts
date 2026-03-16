@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { OrderItem, CreateSaleResult } from '../lib/types'
+import type { OrderItem, CreateSaleResult, Role } from '../lib/types'
 
 export function useSale() {
   const [items, setItems] = useState<OrderItem[]>([])
@@ -69,7 +69,7 @@ export function useSale() {
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const checkout = useCallback(
-    async (remark?: string, extraAmount?: number): Promise<CreateSaleResult> => {
+    async (remark?: string, extraAmount?: number, sellerRole?: Role): Promise<CreateSaleResult> => {
       const result = await window.api.createSale({
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -78,7 +78,8 @@ export function useSale() {
           cost_price: i.cost_price
         })),
         remark,
-        extraAmount
+        extraAmount,
+        sellerRole: sellerRole ?? 'owner'
       })
       setItems([])
       return result

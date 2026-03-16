@@ -15,6 +15,7 @@ export function registerSaleHandlers(): void {
         }[]
         remark?: string
         extraAmount?: number
+        sellerRole: 'owner' | 'employee'
       }
     ) => {
       const db = getDb()
@@ -24,8 +25,8 @@ export function registerSaleHandlers(): void {
         const total = itemsTotal + (input.extraAmount ?? 0)
 
         const saleResult = db
-          .prepare(`INSERT INTO sales (date, total_amount, remark) VALUES (datetime('now'), ?, ?)`)
-          .run(total, input.remark ?? null)
+          .prepare(`INSERT INTO sales (date, total_amount, remark, seller_role) VALUES (datetime('now'), ?, ?, ?)`)
+          .run(total, input.remark ?? null, input.sellerRole)
 
         const saleId = saleResult.lastInsertRowid as number
 
