@@ -127,7 +127,7 @@ export interface ElectronAPI {
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
 
   // Auth
-  verifyOwnerPassword: (password: string) => Promise<boolean>
+  verifyOwnerPassword: (password: string) => Promise<{ success: boolean; error?: string }>
   changeOwnerPassword: (
     currentPassword: string,
     newPassword: string

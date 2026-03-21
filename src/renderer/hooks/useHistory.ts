@@ -9,6 +9,7 @@ export function useHistory() {
     pageSize: 20
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(null)
 
   const fetchSales = useCallback(
@@ -20,6 +21,7 @@ export function useHistory() {
       storeId?: number
     }) => {
       setLoading(true)
+      setError(null)
       try {
         const result = await window.api.getSales({
           page: params.page,
@@ -29,6 +31,8 @@ export function useHistory() {
           storeId: params.storeId
         })
         setSales(result)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
       } finally {
         setLoading(false)
       }
@@ -37,8 +41,12 @@ export function useHistory() {
   )
 
   const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string, storeId?: number) => {
-    const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId)
-    setProfitSummary(result)
+    try {
+      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId)
+      setProfitSummary(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลกำไร')
+    }
   }, [])
 
   const getSaleDetail = useCallback(async (id: number): Promise<SaleWithItems | null> => {
@@ -48,6 +56,7 @@ export function useHistory() {
   return {
     sales,
     loading,
+    error,
     profitSummary,
     fetchSales,
     fetchProfit,

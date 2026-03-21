@@ -23,13 +23,18 @@ export function AuthScreen() {
     setLoading(true)
     setError('')
 
-    const valid = await window.api.verifyOwnerPassword(password)
-    if (valid) {
-      setRole('owner')
-    } else {
-      setError('รหัสผ่านไม่ถูกต้อง')
+    try {
+      const result = await window.api.verifyOwnerPassword(password)
+      if (result?.success) {
+        setRole('owner')
+      } else {
+        setError(result?.error ?? 'รหัสผ่านไม่ถูกต้อง')
+      }
+    } catch {
+      setError('เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleBack = () => {
@@ -71,9 +76,10 @@ export function AuthScreen() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="รหัสผ่าน"
               autoFocus
+              aria-label="รหัสผ่านเจ้าของร้าน"
               className="w-full px-4 py-3 border border-gray-300 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            {error && <p role="alert" className="text-red-500 text-sm text-center">{error}</p>}
             <button
               type="submit"
               disabled={loading || !password}

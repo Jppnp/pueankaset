@@ -1,6 +1,7 @@
 import React from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RoleProvider, useRole } from './contexts/RoleContext'
+import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { Sidebar } from './components/layout/Sidebar'
 import { SalePage } from './pages/SalePage'
@@ -34,10 +35,12 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <RoleProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
-    </RoleProvider>
+    <ErrorBoundary>
+      <RoleProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </RoleProvider>
+    </ErrorBoundary>
   )
 }

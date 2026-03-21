@@ -11,7 +11,7 @@ const api = {
   searchProducts: (query: string) => ipcRenderer.invoke('products:search', query),
 
   // Sales
-  createSale: (input: { items: unknown[]; remark?: string }) =>
+  createSale: (input: { items: unknown[]; remark?: string; extraAmount?: number; sellerRole: string }) =>
     ipcRenderer.invoke('sales:create', input),
   getSales: (params: {
     page: number

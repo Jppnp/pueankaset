@@ -16,9 +16,10 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
   }
 
   return (
-    <div className="divide-y">
+    <div className="divide-y" role="list" aria-label="รายการขาย">
       {sales.map((sale) => (
         <button
+          role="listitem"
           key={sale.id}
           onClick={() => onSelect(sale.id)}
           className={`w-full text-left px-4 py-3 transition-colors ${

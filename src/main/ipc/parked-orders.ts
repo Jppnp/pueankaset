@@ -5,6 +5,11 @@ export function registerParkedOrderHandlers(): void {
   ipcMain.handle(
     'parked-orders:save',
     (_event, label: string | null, itemsJson: string) => {
+      try {
+        JSON.parse(itemsJson)
+      } catch {
+        throw new Error('ข้อมูลรายการสินค้าไม่ถูกต้อง')
+      }
       const db = getDb()
       const result = db
         .prepare(`INSERT INTO parked_orders (label, items_json) VALUES (?, ?)`)

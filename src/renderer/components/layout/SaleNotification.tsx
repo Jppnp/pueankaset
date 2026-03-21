@@ -24,6 +24,8 @@ export function SaleNotification({ total, onDismiss }: SaleNotificationProps) {
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={`fixed top-4 right-4 z-50 transition-all duration-300 ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
       }`}

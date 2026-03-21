@@ -60,12 +60,17 @@ export function SalePage() {
 
   const handleCheckout = useCallback(
     async (options: { remark?: string; print: boolean; cardFee?: number }) => {
-      const result = await sale.checkout(options.remark, options.cardFee, role ?? 'owner')
-      setShowCheckout(false)
-      setNotification(result.total)
+      try {
+        const result = await sale.checkout(options.remark, options.cardFee, role ?? 'owner')
+        setShowCheckout(false)
+        setNotification(result.total)
 
-      if (options.print) {
-        await window.api.printReceipt(result.saleId)
+        if (options.print) {
+          await window.api.printReceipt(result.saleId)
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
+        alert(`เกิดข้อผิดพลาดในการบันทึกการขาย: ${message}`)
       }
     },
     [sale, role]

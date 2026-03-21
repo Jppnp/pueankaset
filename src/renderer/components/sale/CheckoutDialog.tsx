@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
 import { formatBaht, calcCardFee } from '../../lib/format'
 import type { OrderItem } from '../../lib/types'
@@ -15,19 +15,33 @@ export function CheckoutDialog({ open, onClose, items, total, onConfirm }: Check
   const [remark, setRemark] = useState('')
   const [print, setPrint] = useState(false)
   const [payByCard, setPayByCard] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setRemark('')
+      setPrint(false)
+      setPayByCard(false)
+      setSubmitting(false)
+    }
+  }, [open])
 
   const cardFee = calcCardFee(total)
   const grandTotal = payByCard ? total + cardFee : total
 
-  const handleConfirm = () => {
-    const remarkParts = [remark.trim(), payByCard ? 'ชำระบัตร' : ''].filter(Boolean)
-    onConfirm({
-      remark: remarkParts.join(' | ') || undefined,
-      print,
-      cardFee: payByCard ? cardFee : undefined
-    })
-    setRemark('')
-    setPayByCard(false)
+  const handleConfirm = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      const remarkParts = [remark.trim(), payByCard ? 'ชำระบัตร' : ''].filter(Boolean)
+      await onConfirm({
+        remark: remarkParts.join(' | ') || undefined,
+        print,
+        cardFee: payByCard ? cardFee : undefined
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -105,9 +119,10 @@ export function CheckoutDialog({ open, onClose, items, total, onConfirm }: Check
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-[2] px-4 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors text-lg"
+            disabled={submitting}
+            className="flex-[2] px-4 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors text-lg disabled:opacity-50"
           >
-            ยืนยันการขาย
+            {submitting ? 'กำลังบันทึก...' : 'ยืนยันการขาย'}
           </button>
         </div>
       </div>

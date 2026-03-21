@@ -28,6 +28,7 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="ค้นหาสินค้า... (F2)"
+        aria-label="ค้นหาสินค้า"
         className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
         autoFocus
       />
@@ -47,6 +48,7 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
       {value && (
         <button
           onClick={onClear}
+          aria-label="ล้างการค้นหา"
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
         >
           &times;

@@ -13,10 +13,11 @@ export function Pagination({ page, total, pageSize, onPageChange }: PaginationPr
   if (totalPages <= 1) return null
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-4">
+    <nav aria-label="Pagination" className="flex items-center justify-center gap-2 mt-4">
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
+        aria-label="หน้าก่อนหน้า"
         className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-100"
       >
         ก่อนหน้า
@@ -27,10 +28,11 @@ export function Pagination({ page, total, pageSize, onPageChange }: PaginationPr
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
+        aria-label="หน้าถัดไป"
         className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-100"
       >
         ถัดไป
       </button>
-    </div>
+    </nav>
   )
 }

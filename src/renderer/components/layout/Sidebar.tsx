@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useRole } from '../../contexts/RoleContext'
 import { ChangePasswordDialog } from '../auth/ChangePasswordDialog'
@@ -14,7 +14,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const [showChangePassword, setShowChangePassword] = useState(false)
 
-  const navItems = allNavItems.filter((item) => !item.ownerOnly || isOwner)
+  const navItems = useMemo(() => allNavItems.filter((item) => !item.ownerOnly || isOwner), [isOwner])
 
   const handleSwitchRole = () => {
     logout()
