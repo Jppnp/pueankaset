@@ -69,7 +69,7 @@ export function Sidebar() {
             เปลี่ยนรหัสผ่าน
           </button>
         )}
-        <div className="text-xs text-green-400">เวอร์ชัน 1.0.0</div>
+        <div className="text-xs text-green-400">เวอร์ชัน {__APP_VERSION__}</div>
       </div>
       <ChangePasswordDialog
         open={showChangePassword}

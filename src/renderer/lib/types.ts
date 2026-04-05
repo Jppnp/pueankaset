@@ -357,4 +357,5 @@ declare global {
   interface Window {
     api: ElectronAPI
   }
+  const __APP_VERSION__: string
 }
