@@ -13,6 +13,7 @@ export function registerPrinterHandlers(): void {
         date: string
         total_amount: number
         remark: string | null
+        seller_role: string | null
       } | undefined
 
       if (!sale) {

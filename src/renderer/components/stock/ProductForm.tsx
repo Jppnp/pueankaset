@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Modal } from '../shared/Modal'
 import type { Product, Store } from '../../lib/types'
 
@@ -26,6 +26,8 @@ export function ProductForm({ open, onClose, product, stores, onSave }: ProductF
   const [stock, setStock] = useState('')
   const [exclude, setExclude] = useState(false)
   const [storeId, setStoreId] = useState(1)
+  const storesRef = useRef(stores)
+  storesRef.current = stores
 
   useEffect(() => {
     if (product) {
@@ -43,9 +45,9 @@ export function ProductForm({ open, onClose, product, stores, onSave }: ProductF
       setSalePrice('')
       setStock('0')
       setExclude(false)
-      setStoreId(stores[0]?.id ?? 1)
+      setStoreId(storesRef.current[0]?.id ?? 1)
     }
-  }, [product, open, stores])
+  }, [product, open])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

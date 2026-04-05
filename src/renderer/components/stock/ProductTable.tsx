@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { Product, Store } from '../../lib/types'
 import { formatBaht } from '../../lib/format'
 
@@ -10,7 +10,7 @@ interface ProductTableProps {
 }
 
 export function ProductTable({ products, stores, loading, onEdit }: ProductTableProps) {
-  const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.name]))
+  const storeMap = useMemo(() => Object.fromEntries(stores.map((s) => [s.id, s.name])), [stores])
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-400">
@@ -24,14 +24,14 @@ export function ProductTable({ products, stores, loading, onEdit }: ProductTable
       <table className="w-full">
         <thead>
           <tr className="bg-gray-50 text-left text-sm text-gray-600">
-            <th className="px-4 py-3 font-medium">ชื่อสินค้า</th>
-            <th className="px-4 py-3 font-medium">รายละเอียด</th>
-            <th className="px-4 py-3 font-medium">ร้านค้า</th>
-            <th className="px-4 py-3 font-medium text-right">ราคาทุน</th>
-            <th className="px-4 py-3 font-medium text-right">ราคาขาย</th>
-            <th className="px-4 py-3 font-medium text-right">คงเหลือ</th>
-            <th className="px-4 py-3 font-medium text-center">ไม่คิดกำไร</th>
-            <th className="px-4 py-3 font-medium"></th>
+            <th scope="col" className="px-4 py-3 font-medium">ชื่อสินค้า</th>
+            <th scope="col" className="px-4 py-3 font-medium">รายละเอียด</th>
+            <th scope="col" className="px-4 py-3 font-medium">ร้านค้า</th>
+            <th scope="col" className="px-4 py-3 font-medium text-right">ราคาทุน</th>
+            <th scope="col" className="px-4 py-3 font-medium text-right">ราคาขาย</th>
+            <th scope="col" className="px-4 py-3 font-medium text-right">คงเหลือ</th>
+            <th scope="col" className="px-4 py-3 font-medium text-center">ไม่คิดกำไร</th>
+            <th scope="col" className="px-4 py-3 font-medium"></th>
           </tr>
         </thead>
         <tbody className="divide-y">

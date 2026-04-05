@@ -31,11 +31,17 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: Mo
         if (e.target === overlayRef.current) onClose()
       }}
     >
-      <div className={`bg-white rounded-xl shadow-xl w-full ${width} mx-4 max-h-[90vh] flex flex-col`}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        className={`bg-white rounded-xl shadow-xl w-full ${width} mx-4 max-h-[90vh] flex flex-col`}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 id="modal-title" className="text-lg font-semibold">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="ปิด"
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
           >
             &times;

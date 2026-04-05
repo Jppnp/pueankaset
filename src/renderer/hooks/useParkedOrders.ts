@@ -24,14 +24,15 @@ export function useParkedOrders() {
 
   const loadParkedOrder = useCallback(
     async (id: number): Promise<OrderItem[]> => {
-      const order = parkedOrders.find((o) => o.id === id)
+      const orders = await window.api.getParkedOrders()
+      const order = orders.find((o: ParkedOrder) => o.id === id)
       if (!order) return []
       const items = JSON.parse(order.items_json) as OrderItem[]
       await window.api.deleteParkedOrder(id)
       await fetchParkedOrders()
       return items
     },
-    [parkedOrders, fetchParkedOrders]
+    [fetchParkedOrders]
   )
 
   const deleteParkedOrder = useCallback(

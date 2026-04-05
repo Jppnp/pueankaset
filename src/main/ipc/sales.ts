@@ -18,6 +18,10 @@ export function registerSaleHandlers(): void {
         sellerRole: 'owner' | 'employee'
       }
     ) => {
+      if (!['owner', 'employee'].includes(input.sellerRole)) {
+        throw new Error('Invalid seller role')
+      }
+
       const db = getDb()
 
       const createSale = db.transaction(() => {
@@ -37,7 +41,22 @@ export function registerSaleHandlers(): void {
           `UPDATE products SET stock_on_hand = stock_on_hand - ?, updated_at = datetime('now') WHERE id = ?`
         )
 
+        const checkStock = db.prepare(
+          `SELECT stock_on_hand, name FROM products WHERE id = ?`
+        )
+
         for (const item of input.items) {
+          const product = checkStock.get(item.product_id) as
+            | { stock_on_hand: number; name: string }
+            | undefined
+          if (!product) {
+            throw new Error(`ไม่พบสินค้า (id: ${item.product_id})`)
+          }
+          if (product.stock_on_hand < item.quantity) {
+            throw new Error(
+              `สินค้า "${product.name}" มีสต็อกไม่เพียงพอ (คงเหลือ ${product.stock_on_hand} ต้องการ ${item.quantity})`
+            )
+          }
           insertItem.run(saleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
         }

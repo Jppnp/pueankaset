@@ -17,16 +17,17 @@ export function registerImportHandlers(): void {
         description: string | null
         cost_price: number
         sale_price: number
-        stockOnHand: number
+        stock_on_hand: number
+        exclude_from_profit: number
       }[]
 
       const insertProduct = db.prepare(
-        `INSERT OR REPLACE INTO products (id, name, description, cost_price, sale_price, stock_on_hand, store_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT OR REPLACE INTO products (id, name, description, cost_price, sale_price, stock_on_hand, exclude_from_profit, store_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
 
       for (const p of products) {
-        insertProduct.run(p.id, p.name, p.description, p.cost_price, p.sale_price, p.stockOnHand, storeId)
+        insertProduct.run(p.id, p.name, p.description, p.cost_price, p.sale_price, p.stock_on_hand, p.exclude_from_profit ?? 0, storeId)
       }
 
       // Import sales

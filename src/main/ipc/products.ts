@@ -40,6 +40,14 @@ export function registerProductHandlers(): void {
         store_id: number
       }
     ) => {
+      if (!product.name?.trim()) throw new Error('ชื่อสินค้าห้ามว่าง')
+      if (typeof product.cost_price !== 'number' || product.cost_price < 0)
+        throw new Error('ราคาทุนต้องไม่ติดลบ')
+      if (typeof product.sale_price !== 'number' || product.sale_price < 0)
+        throw new Error('ราคาขายต้องไม่ติดลบ')
+      if (typeof product.stock_on_hand !== 'number' || product.stock_on_hand < 0)
+        throw new Error('จำนวนคงเหลือต้องไม่ติดลบ')
+
       const db = getDb()
       const result = db
         .prepare(

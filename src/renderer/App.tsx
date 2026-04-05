@@ -1,11 +1,13 @@
 import React from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RoleProvider, useRole } from './contexts/RoleContext'
+import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { Sidebar } from './components/layout/Sidebar'
 import { SalePage } from './pages/SalePage'
 import { StockPage } from './pages/StockPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { DashboardPage } from './pages/DashboardPage'
 
 function AppRoutes() {
   const { role, isOwner } = useRole()
@@ -25,6 +27,10 @@ function AppRoutes() {
             element={isOwner ? <StockPage /> : <Navigate to="/" replace />}
           />
           <Route path="/history" element={<HistoryPage />} />
+          <Route
+            path="/dashboard"
+            element={isOwner ? <DashboardPage /> : <Navigate to="/" replace />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -34,10 +40,12 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <RoleProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
-    </RoleProvider>
+    <ErrorBoundary>
+      <RoleProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </RoleProvider>
+    </ErrorBoundary>
   )
 }

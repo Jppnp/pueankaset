@@ -71,6 +71,28 @@ export interface ProfitSummary {
   sale_count: number
 }
 
+export interface TopProduct {
+  id: number
+  name: string
+  sale_price: number
+  total_quantity: number
+  total_revenue: number
+}
+
+export interface LowStockProduct {
+  id: number
+  name: string
+  stock_on_hand: number
+  sale_price: number
+  store_id: number
+}
+
+export interface RevenueTrendPoint {
+  day: string
+  revenue: number
+  order_count: number
+}
+
 export interface CreateSaleInput {
   items: {
     product_id: number
@@ -109,6 +131,12 @@ export interface ElectronAPI {
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
   getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number) => Promise<ProfitSummary>
 
+  // Dashboard
+  getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ProfitSummary>
+  getTopProducts: (dateFrom: string, dateTo: string, limit?: number, storeId?: number) => Promise<TopProduct[]>
+  getLowStockProducts: (threshold?: number, storeId?: number) => Promise<LowStockProduct[]>
+  getRevenueTrend: (dateFrom: string, dateTo: string, storeId?: number) => Promise<RevenueTrendPoint[]>
+
   // Stores
   getStores: () => Promise<Store[]>
   createStore: (name: string) => Promise<Store>
@@ -127,7 +155,7 @@ export interface ElectronAPI {
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
 
   // Auth
-  verifyOwnerPassword: (password: string) => Promise<boolean>
+  verifyOwnerPassword: (password: string) => Promise<{ success: boolean; error?: string }>
   changeOwnerPassword: (
     currentPassword: string,
     newPassword: string

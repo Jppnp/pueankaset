@@ -45,6 +45,7 @@ export function OrderPanel({
                   </div>
                   <button
                     onClick={() => onRemove(item.product_id)}
+                    aria-label={`ลบ ${item.name}`}
                     className="text-red-400 hover:text-red-600 text-sm shrink-0"
                   >
                     ลบ
@@ -64,6 +65,7 @@ export function OrderPanel({
                       onChange={(e) =>
                         onUpdateQuantity(item.product_id, parseInt(e.target.value) || 0)
                       }
+                      aria-label={`จำนวน ${item.name}`}
                       className="w-12 text-center border rounded py-0.5 text-sm"
                       min={1}
                     />
@@ -80,6 +82,7 @@ export function OrderPanel({
                       onChange={(e) =>
                         onUpdatePrice(item.product_id, parseFloat(e.target.value) || 0)
                       }
+                      aria-label={`ราคา ${item.name}`}
                       className="w-20 text-right border rounded py-0.5 text-sm"
                       step={0.01}
                     />

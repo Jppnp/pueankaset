@@ -11,7 +11,7 @@ const api = {
   searchProducts: (query: string) => ipcRenderer.invoke('products:search', query),
 
   // Sales
-  createSale: (input: { items: unknown[]; remark?: string }) =>
+  createSale: (input: { items: unknown[]; remark?: string; extraAmount?: number; sellerRole: string }) =>
     ipcRenderer.invoke('sales:create', input),
   getSales: (params: {
     page: number
@@ -42,6 +42,16 @@ const api = {
     ipcRenderer.invoke('import:from-store', filePath, storeId),
   selectFile: () => ipcRenderer.invoke('import:select-file'),
   getDbInfo: () => ipcRenderer.invoke('import:db-info'),
+
+  // Dashboard
+  getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:summary', dateFrom, dateTo, storeId),
+  getTopProducts: (dateFrom: string, dateTo: string, limit?: number, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:top-products', dateFrom, dateTo, limit, storeId),
+  getLowStockProducts: (threshold?: number, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:low-stock', threshold, storeId),
+  getRevenueTrend: (dateFrom: string, dateTo: string, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:revenue-trend', dateFrom, dateTo, storeId),
 
   // Auth
   verifyOwnerPassword: (password: string) => ipcRenderer.invoke('auth:verify-password', password),

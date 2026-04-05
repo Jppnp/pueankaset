@@ -7,6 +7,15 @@ interface ParkedOrderBarProps {
   onDelete: (id: number) => void
 }
 
+function getPreview(itemsJson: string): string {
+  try {
+    const items = JSON.parse(itemsJson) as { name: string }[]
+    return items.map((i) => i.name).join(', ')
+  } catch {
+    return 'ข้อมูลไม่สมบูรณ์'
+  }
+}
+
 export function ParkedOrderBar({ orders, onLoad, onDelete }: ParkedOrderBarProps) {
   if (orders.length === 0) return null
 
@@ -14,8 +23,7 @@ export function ParkedOrderBar({ orders, onLoad, onDelete }: ParkedOrderBarProps
     <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 overflow-x-auto">
       <span className="text-sm text-amber-700 font-medium shrink-0">พักไว้:</span>
       {orders.map((order) => {
-        const items = JSON.parse(order.items_json) as { name: string }[]
-        const preview = items.map((i) => i.name).join(', ')
+        const preview = getPreview(order.items_json)
         return (
           <div
             key={order.id}
@@ -33,6 +41,7 @@ export function ParkedOrderBar({ orders, onLoad, onDelete }: ParkedOrderBarProps
                 e.stopPropagation()
                 onDelete(order.id)
               }}
+              aria-label={`ลบออเดอร์ ${order.label || order.id}`}
               className="text-amber-400 hover:text-red-500 text-xs ml-1"
             >
               &times;

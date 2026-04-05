@@ -35,9 +35,11 @@ export function SearchResults({ results, loading, onSelect, query }: SearchResul
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto" role="listbox" aria-label="ผลการค้นหาสินค้า">
       {results.map((product) => (
         <button
+          role="option"
+          aria-selected={false}
           key={product.id}
           onClick={() => onSelect(product)}
           className="w-full text-left px-4 py-3 hover:bg-green-50 border-b border-gray-100 transition-colors"
