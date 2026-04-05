@@ -60,6 +60,17 @@ const api = {
   getCustomerPayments: (customerId: number) =>
     ipcRenderer.invoke('customer-payments:list', customerId),
 
+  // Expenses
+  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string }) =>
+    ipcRenderer.invoke('expenses:list', params),
+  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string }) =>
+    ipcRenderer.invoke('expenses:create', input),
+  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string }) =>
+    ipcRenderer.invoke('expenses:update', id, updates),
+  deleteExpense: (id: number) => ipcRenderer.invoke('expenses:delete', id),
+  getExpenseSummary: (dateFrom: string, dateTo: string) =>
+    ipcRenderer.invoke('expenses:summary', { dateFrom, dateTo }),
+
   // Stock Movements
   getStockMovements: (params: { productId: number; page: number; pageSize: number; dateFrom?: string; dateTo?: string }) =>
     ipcRenderer.invoke('stock-movements:list', params),

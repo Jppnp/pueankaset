@@ -165,11 +165,27 @@ export function HistoryPage() {
                   </p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-500">กำไรสุทธิ</span>
-                  <p className="text-xl font-bold text-green-600">
+                  <span className="text-sm text-gray-500">กำไรขั้นต้น</span>
+                  <p className="text-lg font-semibold text-green-600">
                     {formatBaht(profitSummary.total_profit)}
                   </p>
                 </div>
+                {profitSummary.total_expenses !== undefined && (
+                  <>
+                    <div>
+                      <span className="text-sm text-gray-500">ค่าใช้จ่าย</span>
+                      <p className="text-lg font-semibold text-orange-500">
+                        {formatBaht(profitSummary.total_expenses)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">กำไรสุทธิ</span>
+                      <p className="text-xl font-bold text-green-600">
+                        {formatBaht(profitSummary.net_profit ?? profitSummary.total_profit)}
+                      </p>
+                    </div>
+                  </>
+                )}
               </>
             )}
             <div className="text-xs text-gray-400 ml-auto">

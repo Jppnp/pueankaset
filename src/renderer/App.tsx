@@ -9,6 +9,7 @@ import { StockPage } from './pages/StockPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CustomerPage } from './pages/CustomerPage'
+import { ExpensePage } from './pages/ExpensePage'
 
 function AppRoutes() {
   const { role, isOwner } = useRole()
@@ -31,6 +32,10 @@ function AppRoutes() {
           <Route
             path="/customers"
             element={isOwner ? <CustomerPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/expenses"
+            element={isOwner ? <ExpensePage /> : <Navigate to="/" replace />}
           />
           <Route
             path="/dashboard"

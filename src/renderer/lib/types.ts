@@ -175,6 +175,8 @@ export interface ProfitSummary {
   total_cost: number
   total_profit: number
   sale_count: number
+  total_expenses?: number
+  net_profit?: number
 }
 
 export interface TopProduct {
@@ -197,6 +199,21 @@ export interface RevenueTrendPoint {
   day: string
   revenue: number
   order_count: number
+}
+
+export interface Expense {
+  id: number
+  category: string
+  amount: number
+  description: string | null
+  date: string
+  created_by: string
+  created_at: string
+}
+
+export interface ExpenseSummary {
+  total_expenses: number
+  by_category: { category: string; total: number }[]
 }
 
 export type StockMovementType = 'in' | 'out' | 'adjust'
@@ -272,6 +289,13 @@ export interface ElectronAPI {
   // Refunds
   createRefund: (input: CreateRefundInput) => Promise<CreateRefundResult>
   getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
+
+  // Expenses
+  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string }) => Promise<PaginatedResult<Expense>>
+  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string }) => Promise<Expense>
+  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string }) => Promise<Expense>
+  deleteExpense: (id: number) => Promise<{ success: boolean }>
+  getExpenseSummary: (dateFrom: string, dateTo: string) => Promise<ExpenseSummary>
 
   // Stock Movements
   getStockMovements: (params: {

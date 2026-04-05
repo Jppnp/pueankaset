@@ -277,11 +277,26 @@ export function registerSaleHandlers(): void {
       const total_revenue = gross.total_revenue - refunded.refund_revenue
       const total_cost = gross.total_cost - refunded.refund_cost
 
+      // Expenses for the date range (business-wide, not store-specific)
+      const expenseConditions: string[] = []
+      const expenseParams: unknown[] = []
+      if (dateFrom) { expenseConditions.push('date >= ?'); expenseParams.push(dateFrom) }
+      if (dateTo) { expenseConditions.push('date <= ?'); expenseParams.push(dateTo) }
+      const expenseWhere = expenseConditions.length > 0 ? `WHERE ${expenseConditions.join(' AND ')}` : ''
+
+      const expenses = db
+        .prepare(`SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses ${expenseWhere}`)
+        .get(...expenseParams) as { total_expenses: number }
+
+      const totalProfit = total_revenue - total_cost
+
       return {
         total_revenue,
         total_cost,
-        total_profit: total_revenue - total_cost,
-        sale_count: gross.sale_count
+        total_profit: totalProfit,
+        sale_count: gross.sale_count,
+        total_expenses: expenses.total_expenses,
+        net_profit: totalProfit - expenses.total_expenses
       }
     }
   )

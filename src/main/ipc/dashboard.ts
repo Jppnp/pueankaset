@@ -35,9 +35,17 @@ export function registerDashboardHandlers(): void {
            JOIN products p ON p.id = si.product_id
            ${where}`
         )
-        .get(...params)
+        .get(...params) as { total_revenue: number; total_cost: number; total_profit: number; sale_count: number }
 
-      return result
+      const expenseResult = db
+        .prepare('SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses WHERE date >= ? AND date <= ?')
+        .get(dateFrom, dateTo) as { total_expenses: number }
+
+      return {
+        ...result,
+        total_expenses: expenseResult.total_expenses,
+        net_profit: result.total_profit - expenseResult.total_expenses
+      }
     }
   )
 

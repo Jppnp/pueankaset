@@ -14,6 +14,7 @@ import { registerCustomerHandlers } from './ipc/customers'
 import { registerRefundHandlers } from './ipc/refunds'
 import { registerExchangeHandlers } from './ipc/exchanges'
 import { registerStockMovementHandlers } from './ipc/stock-movements'
+import { registerExpenseHandlers } from './ipc/expenses'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -62,6 +63,7 @@ app.whenReady().then(() => {
   registerRefundHandlers()
   registerExchangeHandlers()
   registerStockMovementHandlers()
+  registerExpenseHandlers()
 
   createWindow()
 
