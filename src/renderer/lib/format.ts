@@ -26,7 +26,7 @@ export function formatThaiDateShort(dateStr: string): string {
   return `${day}/${month}/${buddhistYear}`
 }
 
-const THAI_MONTHS = [
+export const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
   'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
   'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
@@ -50,6 +50,15 @@ export function toISODate(date: Date): string {
 export function todayRange(): { from: string; to: string } {
   const today = toISODate(new Date())
   return { from: `${today} 00:00:00`, to: `${today} 23:59:59` }
+}
+
+export function monthRange(year: number, month: number): { from: string; to: string } {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  const mm = (month + 1).toString().padStart(2, '0')
+  return {
+    from: `${year}-${mm}-01 00:00:00`,
+    to: `${year}-${mm}-${lastDay.toString().padStart(2, '0')} 23:59:59`
+  }
 }
 
 export function thisMonthRange(): { from: string; to: string } {
