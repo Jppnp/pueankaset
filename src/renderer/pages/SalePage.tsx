@@ -21,7 +21,7 @@ export function SalePage() {
   const { results, loading, search, clear } = useProductSearch()
   const sale = useSale()
   const parked = useParkedOrders()
-  const { role } = useRole()
+  const { role, isOwner } = useRole()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -119,6 +119,7 @@ export function SalePage() {
             <CustomerSelector
               selectedCustomer={selectedCustomer}
               onSelect={setSelectedCustomer}
+              canCreate={isOwner}
             />
           </div>
           <OrderPanel

@@ -4,9 +4,10 @@ import type { Customer } from '../../lib/types'
 interface Props {
   selectedCustomer: Customer | null
   onSelect: (customer: Customer | null) => void
+  canCreate?: boolean
 }
 
-export function CustomerSelector({ selectedCustomer, onSelect }: Props) {
+export function CustomerSelector({ selectedCustomer, onSelect, canCreate = true }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Customer[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -99,12 +100,14 @@ export function CustomerSelector({ selectedCustomer, onSelect }: Props) {
           placeholder="ค้นหาลูกค้า (ชื่อ/เบอร์โทร)..."
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
-        <button
-          onClick={() => setShowQuickAdd(true)}
-          className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap"
-        >
-          + เพิ่มลูกค้า
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowQuickAdd(true)}
+            className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap"
+          >
+            + เพิ่มลูกค้า
+          </button>
+        )}
       </div>
 
       {showDropdown && results.length > 0 && (
