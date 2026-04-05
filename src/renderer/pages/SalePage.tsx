@@ -4,17 +4,19 @@ import { SearchResults } from '../components/sale/SearchResults'
 import { OrderPanel } from '../components/sale/OrderPanel'
 import { ParkedOrderBar } from '../components/sale/ParkedOrderBar'
 import { CheckoutDialog } from '../components/sale/CheckoutDialog'
+import { CustomerSelector } from '../components/sale/CustomerSelector'
 import { SaleNotification } from '../components/layout/SaleNotification'
 import { useProductSearch } from '../hooks/useProducts'
 import { useSale } from '../hooks/useSale'
 import { useParkedOrders } from '../hooks/useParkedOrders'
 import { useRole } from '../contexts/RoleContext'
-import type { Product } from '../lib/types'
+import type { Product, Customer, PaymentType } from '../lib/types'
 
 export function SalePage() {
   const [query, setQuery] = useState('')
   const [showCheckout, setShowCheckout] = useState(false)
   const [notification, setNotification] = useState<number | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
   const { results, loading, search, clear } = useProductSearch()
   const sale = useSale()
@@ -59,11 +61,24 @@ export function SalePage() {
   )
 
   const handleCheckout = useCallback(
-    async (options: { remark?: string; print: boolean; cardFee?: number }) => {
+    async (options: {
+      remark?: string
+      print: boolean
+      cardFee?: number
+      paymentType: PaymentType
+      customerId?: number
+    }) => {
       try {
-        const result = await sale.checkout(options.remark, options.cardFee, role ?? 'owner')
+        const result = await sale.checkout(
+          options.remark,
+          options.cardFee,
+          role ?? 'owner',
+          options.customerId,
+          options.paymentType
+        )
         setShowCheckout(false)
         setNotification(result.total)
+        setSelectedCustomer(null)
 
         if (options.print) {
           await window.api.printReceipt(result.saleId)
@@ -100,6 +115,12 @@ export function SalePage() {
 
         {/* Right panel - Order */}
         <div className="w-96 flex flex-col shrink-0">
+          <div className="px-4 pt-3 pb-2 border-b">
+            <CustomerSelector
+              selectedCustomer={selectedCustomer}
+              onSelect={setSelectedCustomer}
+            />
+          </div>
           <OrderPanel
             items={sale.items}
             total={sale.total}
@@ -117,6 +138,7 @@ export function SalePage() {
         onClose={() => setShowCheckout(false)}
         items={sale.items}
         total={sale.total}
+        selectedCustomer={selectedCustomer}
         onConfirm={handleCheckout}
       />
 

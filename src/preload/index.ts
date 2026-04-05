@@ -43,6 +43,23 @@ const api = {
   selectFile: () => ipcRenderer.invoke('import:select-file'),
   getDbInfo: () => ipcRenderer.invoke('import:db-info'),
 
+  // Customers
+  getCustomers: (query?: string) => ipcRenderer.invoke('customers:list', query),
+  getCustomer: (id: number) => ipcRenderer.invoke('customers:get', id),
+  createCustomer: (input: { name: string; phone?: string; address?: string }) =>
+    ipcRenderer.invoke('customers:create', input),
+  updateCustomer: (id: number, updates: { name?: string; phone?: string; address?: string }) =>
+    ipcRenderer.invoke('customers:update', id, updates),
+  deleteCustomer: (id: number) => ipcRenderer.invoke('customers:delete', id),
+  getCustomerDebtSummary: (id: number) => ipcRenderer.invoke('customers:debt-summary', id),
+  getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) =>
+    ipcRenderer.invoke('customers:purchase-history', params),
+  getCustomersWithDebt: (query?: string) => ipcRenderer.invoke('customers:list-with-debt', query),
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) =>
+    ipcRenderer.invoke('customer-payments:create', input),
+  getCustomerPayments: (customerId: number) =>
+    ipcRenderer.invoke('customer-payments:list', customerId),
+
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
     ipcRenderer.invoke('dashboard:summary', dateFrom, dateTo, storeId),

@@ -35,13 +35,27 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
             </div>
             <div className="text-right">
               <span className="font-semibold text-green-700">{formatBaht(sale.total_amount)}</span>
-              <p className="text-xs text-gray-400">
-                {sale.seller_role === 'owner' ? 'เจ้าของร้าน' : 'พนักงาน'}
-              </p>
+              <div className="flex items-center justify-end gap-1 mt-0.5">
+                <span className="text-xs text-gray-400">
+                  {sale.seller_role === 'owner' ? 'เจ้าของร้าน' : 'พนักงาน'}
+                </span>
+                {sale.payment_type && sale.payment_type !== 'cash' && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    sale.payment_type === 'credit'
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {sale.payment_type === 'credit' ? 'เชื่อ' : 'บัตร'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+          {sale.customer_name && (
+            <p className="text-xs text-blue-500 mt-1">{sale.customer_name}</p>
+          )}
           {sale.remark && (
-            <p className="text-xs text-gray-400 mt-1">{sale.remark}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{sale.remark}</p>
           )}
         </button>
       ))}

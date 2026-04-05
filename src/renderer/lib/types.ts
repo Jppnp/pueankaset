@@ -1,4 +1,5 @@
 export type Role = 'owner' | 'employee'
+export type PaymentType = 'cash' | 'card' | 'credit'
 
 export interface Store {
   id: number
@@ -19,12 +20,45 @@ export interface Product {
   updated_at: string
 }
 
+export interface Customer {
+  id: number
+  name: string
+  phone: string | null
+  address: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CustomerWithDebt extends Customer {
+  total_credit: number
+  total_paid: number
+  outstanding: number
+}
+
+export interface CustomerPayment {
+  id: number
+  customer_id: number
+  amount: number
+  date: string
+  note: string | null
+  created_at: string
+}
+
+export interface DebtSummary {
+  total_credit: number
+  total_paid: number
+  outstanding: number
+}
+
 export interface Sale {
   id: number
   date: string
   total_amount: number
   remark: string | null
   seller_role: Role
+  customer_id: number | null
+  payment_type: PaymentType
+  customer_name?: string
 }
 
 export interface SaleItem {
@@ -37,6 +71,7 @@ export interface SaleItem {
 }
 
 export interface SaleWithItems extends Sale {
+  customer_phone?: string
   items: (SaleItem & { product_name: string })[]
 }
 
@@ -103,6 +138,8 @@ export interface CreateSaleInput {
   remark?: string
   extraAmount?: number
   sellerRole: Role
+  customerId?: number
+  paymentType?: PaymentType
 }
 
 export interface CreateSaleResult {
@@ -127,9 +164,22 @@ export interface ElectronAPI {
     dateFrom?: string
     dateTo?: string
     storeId?: number
+    customerId?: number
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
   getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number) => Promise<ProfitSummary>
+
+  // Customers
+  getCustomers: (query?: string) => Promise<Customer[]>
+  getCustomer: (id: number) => Promise<Customer | null>
+  createCustomer: (input: { name: string; phone?: string; address?: string }) => Promise<Customer>
+  updateCustomer: (id: number, updates: { name?: string; phone?: string; address?: string }) => Promise<Customer>
+  deleteCustomer: (id: number) => Promise<{ success: boolean; error?: string }>
+  getCustomerDebtSummary: (id: number) => Promise<DebtSummary>
+  getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) => Promise<PaginatedResult<Sale>>
+  getCustomersWithDebt: (query?: string) => Promise<CustomerWithDebt[]>
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) => Promise<CustomerPayment>
+  getCustomerPayments: (customerId: number) => Promise<CustomerPayment[]>
 
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ProfitSummary>

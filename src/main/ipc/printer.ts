@@ -8,12 +8,21 @@ export function registerPrinterHandlers(): void {
     try {
       const db = getDb()
 
-      const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId) as {
+      const sale = db
+        .prepare(
+          `SELECT s.*, c.name as customer_name
+           FROM sales s
+           LEFT JOIN customers c ON c.id = s.customer_id
+           WHERE s.id = ?`
+        )
+        .get(saleId) as {
         id: number
         date: string
         total_amount: number
         remark: string | null
         seller_role: string | null
+        customer_name: string | null
+        payment_type: string | null
       } | undefined
 
       if (!sale) {
