@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
+import { formatBaht } from '../../lib/format'
 import type { Product, Role } from '../../lib/types'
 
 interface Props {
@@ -14,6 +15,9 @@ const PRESET_REASONS = ['รับสินค้าเข้า', 'ตรวจ
 
 export function AddStockDialog({ open, onClose, product, role, onSuccess }: Props) {
   const [quantity, setQuantity] = useState('')
+  const [costPrice, setCostPrice] = useState('')
+  const [salePrice, setSalePrice] = useState('')
+  const [updatePrices, setUpdatePrices] = useState(false)
   const [reason, setReason] = useState(PRESET_REASONS[0])
   const [customReason, setCustomReason] = useState('')
   const [useCustom, setUseCustom] = useState(false)
@@ -23,13 +27,16 @@ export function AddStockDialog({ open, onClose, product, role, onSuccess }: Prop
   useEffect(() => {
     if (open) {
       setQuantity('')
+      setCostPrice(product.cost_price.toString())
+      setSalePrice(product.sale_price.toString())
+      setUpdatePrices(false)
       setReason(PRESET_REASONS[0])
       setCustomReason('')
       setUseCustom(false)
       setError(null)
       setSaving(false)
     }
-  }, [open])
+  }, [open, product])
 
   const handleSave = async () => {
     const qty = parseInt(quantity)
@@ -42,6 +49,12 @@ export function AddStockDialog({ open, onClose, product, role, onSuccess }: Prop
       setError('กรุณาระบุเหตุผล')
       return
     }
+    if (updatePrices) {
+      const cp = parseFloat(costPrice)
+      const sp = parseFloat(salePrice)
+      if (isNaN(cp) || cp < 0) { setError('ราคาทุนต้องไม่ติดลบ'); return }
+      if (isNaN(sp) || sp < 0) { setError('ราคาขายต้องไม่ติดลบ'); return }
+    }
     setSaving(true)
     setError(null)
     try {
@@ -51,6 +64,17 @@ export function AddStockDialog({ open, onClose, product, role, onSuccess }: Prop
         reason: finalReason,
         createdBy: role
       })
+      // Update prices if changed
+      if (updatePrices) {
+        const cp = parseFloat(costPrice)
+        const sp = parseFloat(salePrice)
+        if (cp !== product.cost_price || sp !== product.sale_price) {
+          await window.api.updateProduct(product.id, {
+            cost_price: cp,
+            sale_price: sp
+          })
+        }
+      }
       onSuccess()
       onClose()
     } catch (err) {
@@ -68,7 +92,9 @@ export function AddStockDialog({ open, onClose, product, role, onSuccess }: Prop
         )}
         <div className="bg-gray-50 rounded-lg px-4 py-3">
           <p className="text-sm font-medium text-gray-900">{product.name}</p>
-          <p className="text-sm text-gray-500">คงเหลือปัจจุบัน: {product.stock_on_hand}</p>
+          <p className="text-sm text-gray-500">
+            คงเหลือปัจจุบัน: {product.stock_on_hand} | ราคาขาย: {formatBaht(product.sale_price)}
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">จำนวนที่เพิ่ม *</label>
@@ -81,6 +107,45 @@ export function AddStockDialog({ open, onClose, product, role, onSuccess }: Prop
             autoFocus
           />
         </div>
+
+        {/* Price update toggle */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={updatePrices}
+            onChange={(e) => setUpdatePrices(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          />
+          <span className="text-sm text-gray-700">อัปเดตราคาด้วย</span>
+        </label>
+
+        {updatePrices && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ราคาทุน</label>
+              <input
+                type="number"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
+                min={0}
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ราคาขาย</label>
+              <input
+                type="number"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+                min={0}
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">เหตุผล *</label>
           {!useCustom ? (
