@@ -60,6 +60,14 @@ const api = {
   getCustomerPayments: (customerId: number) =>
     ipcRenderer.invoke('customer-payments:list', customerId),
 
+  // Stock Movements
+  getStockMovements: (params: { productId: number; page: number; pageSize: number; dateFrom?: string; dateTo?: string }) =>
+    ipcRenderer.invoke('stock-movements:list', params),
+  addStock: (input: { productId: number; quantity: number; reason: string; createdBy: string }) =>
+    ipcRenderer.invoke('stock-movements:add-stock', input),
+  adjustStock: (input: { productId: number; newQuantity: number; reason: string; createdBy: string }) =>
+    ipcRenderer.invoke('stock-movements:adjust-stock', input),
+
   // Refunds
   createRefund: (input: { saleId: number; items: { saleItemId: number; quantity: number }[]; reason?: string }) =>
     ipcRenderer.invoke('refunds:create', input),

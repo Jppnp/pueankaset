@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
+import { insertStockMovement } from './stock-movements'
 
 export function registerExchangeHandlers(): void {
   ipcMain.handle(
@@ -79,8 +80,19 @@ export function registerExchangeHandlers(): void {
         )
 
         for (const item of validatedReturns) {
+          const currentProduct = db.prepare('SELECT stock_on_hand FROM products WHERE id = ?').get(item.productId) as { stock_on_hand: number }
           insertRefundItem.run(refundId, item.saleItemId, item.quantity, item.price)
           restoreStock.run(item.quantity, item.productId)
+          insertStockMovement(db, {
+            productId: item.productId,
+            type: 'in',
+            quantity: item.quantity,
+            stockBefore: currentProduct.stock_on_hand,
+            stockAfter: currentProduct.stock_on_hand + item.quantity,
+            reason: `เปลี่ยนสินค้า - คืน (ใบเสร็จ #${input.originalSaleId})`,
+            referenceType: 'exchange',
+            createdBy: input.sellerRole
+          })
         }
 
         // If credit sale, refund side reduces debt
@@ -129,6 +141,16 @@ export function registerExchangeHandlers(): void {
           }
           insertSaleItem.run(newSaleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
+          insertStockMovement(db, {
+            productId: item.product_id,
+            type: 'out',
+            quantity: item.quantity,
+            stockBefore: product.stock_on_hand,
+            stockAfter: product.stock_on_hand - item.quantity,
+            reason: `เปลี่ยนสินค้า - รับใหม่ (ใบเสร็จ #${input.originalSaleId})`,
+            referenceType: 'exchange',
+            createdBy: input.sellerRole
+          })
         }
 
         // === EXCHANGE RECORD ===

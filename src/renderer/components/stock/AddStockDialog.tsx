@@ -1,0 +1,137 @@
+import React, { useState, useEffect } from 'react'
+import { Modal } from '../shared/Modal'
+import type { Product, Role } from '../../lib/types'
+
+interface Props {
+  open: boolean
+  onClose: () => void
+  product: Product
+  role: Role
+  onSuccess: () => void
+}
+
+const PRESET_REASONS = ['รับสินค้าเข้า', 'ตรวจนับสต็อก', 'โอนสินค้าเข้า']
+
+export function AddStockDialog({ open, onClose, product, role, onSuccess }: Props) {
+  const [quantity, setQuantity] = useState('')
+  const [reason, setReason] = useState(PRESET_REASONS[0])
+  const [customReason, setCustomReason] = useState('')
+  const [useCustom, setUseCustom] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setQuantity('')
+      setReason(PRESET_REASONS[0])
+      setCustomReason('')
+      setUseCustom(false)
+      setError(null)
+      setSaving(false)
+    }
+  }, [open])
+
+  const handleSave = async () => {
+    const qty = parseInt(quantity)
+    if (!qty || qty <= 0) {
+      setError('กรุณาระบุจำนวนที่มากกว่า 0')
+      return
+    }
+    const finalReason = useCustom ? customReason.trim() : reason
+    if (!finalReason) {
+      setError('กรุณาระบุเหตุผล')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await window.api.addStock({
+        productId: product.id,
+        quantity: qty,
+        reason: finalReason,
+        createdBy: role
+      })
+      onSuccess()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="เพิ่มสต็อก">
+      <div className="space-y-4">
+        {error && (
+          <div className="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2">{error}</div>
+        )}
+        <div className="bg-gray-50 rounded-lg px-4 py-3">
+          <p className="text-sm font-medium text-gray-900">{product.name}</p>
+          <p className="text-sm text-gray-500">คงเหลือปัจจุบัน: {product.stock_on_hand}</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">จำนวนที่เพิ่ม *</label>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            min={1}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">เหตุผล *</label>
+          {!useCustom ? (
+            <div className="space-y-2">
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                {PRESET_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setUseCustom(true)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                ระบุเอง...
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="ระบุเหตุผล"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                onClick={() => setUseCustom(false)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                เลือกจากรายการ
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300">
+            ยกเลิก
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-[2] px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50"
+          >
+            {saving ? 'กำลังบันทึก...' : 'เพิ่มสต็อก'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}

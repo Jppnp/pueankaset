@@ -199,6 +199,23 @@ export interface RevenueTrendPoint {
   order_count: number
 }
 
+export type StockMovementType = 'in' | 'out' | 'adjust'
+
+export interface StockMovement {
+  id: number
+  product_id: number
+  product_name?: string
+  type: StockMovementType
+  quantity: number
+  stock_before: number
+  stock_after: number
+  reason: string | null
+  reference_type: string | null
+  reference_id: number | null
+  created_by: string
+  created_at: string
+}
+
 export interface CreateSaleInput {
   items: {
     product_id: number
@@ -255,6 +272,27 @@ export interface ElectronAPI {
   // Refunds
   createRefund: (input: CreateRefundInput) => Promise<CreateRefundResult>
   getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
+
+  // Stock Movements
+  getStockMovements: (params: {
+    productId: number
+    page: number
+    pageSize: number
+    dateFrom?: string
+    dateTo?: string
+  }) => Promise<PaginatedResult<StockMovement>>
+  addStock: (input: {
+    productId: number
+    quantity: number
+    reason: string
+    createdBy: Role
+  }) => Promise<StockMovement>
+  adjustStock: (input: {
+    productId: number
+    newQuantity: number
+    reason: string
+    createdBy: Role
+  }) => Promise<StockMovement>
 
   // Exchanges
   createExchange: (input: CreateExchangeInput) => Promise<CreateExchangeResult>

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
+import { insertStockMovement } from './stock-movements'
 
 export function registerRefundHandlers(): void {
   ipcMain.handle(
@@ -92,8 +93,20 @@ export function registerRefundHandlers(): void {
         )
 
         for (const item of validatedItems) {
+          const currentProduct = db.prepare('SELECT stock_on_hand FROM products WHERE id = ?').get(item.productId) as { stock_on_hand: number }
           insertRefundItem.run(refundId, item.saleItemId, item.quantity, item.price)
           restoreStock.run(item.quantity, item.productId)
+          insertStockMovement(db, {
+            productId: item.productId,
+            type: 'in',
+            quantity: item.quantity,
+            stockBefore: currentProduct.stock_on_hand,
+            stockAfter: currentProduct.stock_on_hand + item.quantity,
+            reason: `คืนสินค้า (ใบเสร็จ #${input.saleId})`,
+            referenceType: 'refund',
+            referenceId: refundId,
+            createdBy: 'owner'
+          })
         }
 
         // If credit sale, create customer_payment to reduce debt

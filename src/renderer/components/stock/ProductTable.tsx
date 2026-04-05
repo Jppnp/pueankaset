@@ -7,9 +7,12 @@ interface ProductTableProps {
   stores: Store[]
   loading: boolean
   onEdit: (product: Product) => void
+  onAddStock: (product: Product) => void
+  onAdjustStock: (product: Product) => void
+  onViewHistory: (product: Product) => void
 }
 
-export function ProductTable({ products, stores, loading, onEdit }: ProductTableProps) {
+export function ProductTable({ products, stores, loading, onEdit, onAddStock, onAdjustStock, onViewHistory }: ProductTableProps) {
   const storeMap = useMemo(() => Object.fromEntries(stores.map((s) => [s.id, s.name])), [stores])
   if (loading) {
     return (
@@ -59,12 +62,32 @@ export function ProductTable({ products, stores, loading, onEdit }: ProductTable
                 )}
               </td>
               <td className="px-4 py-3 text-right">
-                <button
-                  onClick={() => onEdit(product)}
-                  className="text-sm text-green-600 hover:text-green-800 font-medium"
-                >
-                  แก้ไข
-                </button>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => onAddStock(product)}
+                    className="text-xs text-green-600 hover:text-green-800 font-medium"
+                  >
+                    เพิ่มสต็อก
+                  </button>
+                  <button
+                    onClick={() => onAdjustStock(product)}
+                    className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+                  >
+                    ปรับสต็อก
+                  </button>
+                  <button
+                    onClick={() => onViewHistory(product)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    ประวัติ
+                  </button>
+                  <button
+                    onClick={() => onEdit(product)}
+                    className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    แก้ไข
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

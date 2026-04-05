@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
+import { insertStockMovement } from './stock-movements'
 
 export function registerSaleHandlers(): void {
   ipcMain.handle(
@@ -75,6 +76,17 @@ export function registerSaleHandlers(): void {
           }
           insertItem.run(saleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
+          insertStockMovement(db, {
+            productId: item.product_id,
+            type: 'out',
+            quantity: item.quantity,
+            stockBefore: product.stock_on_hand,
+            stockAfter: product.stock_on_hand - item.quantity,
+            reason: `ขายสินค้า (ใบเสร็จ #${saleId})`,
+            referenceType: 'sale',
+            referenceId: saleId,
+            createdBy: input.sellerRole
+          })
         }
 
         return { saleId, total }

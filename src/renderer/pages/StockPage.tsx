@@ -2,7 +2,11 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { ProductTable } from '../components/stock/ProductTable'
 import { ProductForm } from '../components/stock/ProductForm'
 import { ImportDialog } from '../components/stock/ImportDialog'
+import { AddStockDialog } from '../components/stock/AddStockDialog'
+import { AdjustStockDialog } from '../components/stock/AdjustStockDialog'
+import { StockMovementDialog } from '../components/stock/StockMovementDialog'
 import { useProducts } from '../hooks/useProducts'
+import { useRole } from '../contexts/RoleContext'
 import type { Product, Store } from '../lib/types'
 
 export function StockPage() {
@@ -10,8 +14,12 @@ export function StockPage() {
   const [filterStoreId, setFilterStoreId] = useState<number | undefined>(undefined)
   const [stores, setStores] = useState<Store[]>([])
   const { products, loading, refetch } = useProducts(search || undefined, filterStoreId)
+  const { role } = useRole()
   const [formOpen, setFormOpen] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const [addStockProduct, setAddStockProduct] = useState<Product | null>(null)
+  const [adjustStockProduct, setAdjustStockProduct] = useState<Product | null>(null)
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null)
   const [importing, setImporting] = useState(false)
   const [importFilePath, setImportFilePath] = useState<string | null>(null)
   const [dbInfo, setDbInfo] = useState<{ productCount: number; saleCount: number } | null>(null)
@@ -175,7 +183,15 @@ export function StockPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <ProductTable products={products} stores={stores} loading={loading} onEdit={handleEdit} />
+        <ProductTable
+          products={products}
+          stores={stores}
+          loading={loading}
+          onEdit={handleEdit}
+          onAddStock={setAddStockProduct}
+          onAdjustStock={setAdjustStockProduct}
+          onViewHistory={setHistoryProduct}
+        />
       </div>
 
       <ProductForm
@@ -196,6 +212,34 @@ export function StockPage() {
         onConfirm={handleImportConfirm}
         onClose={() => setImportFilePath(null)}
       />
+
+      {addStockProduct && (
+        <AddStockDialog
+          open={!!addStockProduct}
+          onClose={() => setAddStockProduct(null)}
+          product={addStockProduct}
+          role={role ?? 'owner'}
+          onSuccess={() => refetch(search || undefined, filterStoreId)}
+        />
+      )}
+
+      {adjustStockProduct && (
+        <AdjustStockDialog
+          open={!!adjustStockProduct}
+          onClose={() => setAdjustStockProduct(null)}
+          product={adjustStockProduct}
+          role={role ?? 'owner'}
+          onSuccess={() => refetch(search || undefined, filterStoreId)}
+        />
+      )}
+
+      {historyProduct && (
+        <StockMovementDialog
+          open={!!historyProduct}
+          onClose={() => setHistoryProduct(null)}
+          product={historyProduct}
+        />
+      )}
     </div>
   )
 }

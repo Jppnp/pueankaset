@@ -161,6 +161,28 @@ CREATE TABLE IF NOT EXISTS exchanges (
   FOREIGN KEY (new_sale_id) REFERENCES sales(id)
 );
 `
+  },
+  {
+    version: 7,
+    sql: `
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjust')),
+  quantity INTEGER NOT NULL,
+  stock_before INTEGER NOT NULL,
+  stock_after INTEGER NOT NULL,
+  reason TEXT,
+  reference_type TEXT,
+  reference_id INTEGER,
+  created_by TEXT NOT NULL DEFAULT 'owner',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE INDEX idx_stock_movements_product ON stock_movements(product_id);
+CREATE INDEX idx_stock_movements_created_at ON stock_movements(created_at);
+`
   }
 ]
 
