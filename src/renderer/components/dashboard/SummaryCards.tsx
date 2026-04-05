@@ -30,34 +30,16 @@ export function SummaryCards({ summary }: Props) {
       border: 'border-red-200'
     },
     {
-      label: 'กำไรขั้นต้น',
+      label: 'กำไรสุทธิ',
       value: formatBaht(summary.total_profit),
       bg: 'bg-green-50',
       text: 'text-green-700',
       border: 'border-green-200'
-    },
-    ...(summary.total_expenses !== undefined
-      ? [
-          {
-            label: 'ค่าใช้จ่าย',
-            value: formatBaht(summary.total_expenses),
-            bg: 'bg-orange-50',
-            text: 'text-orange-700',
-            border: 'border-orange-200'
-          },
-          {
-            label: 'กำไรสุทธิ',
-            value: formatBaht(summary.net_profit ?? summary.total_profit),
-            bg: 'bg-emerald-50',
-            text: 'text-emerald-700',
-            border: 'border-emerald-200'
-          }
-        ]
-      : [])
+    }
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-4 gap-4">
       {cards.map((card) => (
         <div
           key={card.label}
