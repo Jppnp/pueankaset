@@ -93,6 +93,32 @@ INSERT OR IGNORE INTO app_settings (key, value) VALUES ('owner_password', '1234'
 
 ALTER TABLE sales ADD COLUMN seller_role TEXT NOT NULL DEFAULT 'owner';
 `
+  },
+  {
+    version: 4,
+    sql: `
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+ALTER TABLE sales ADD COLUMN customer_id INTEGER DEFAULT NULL;
+ALTER TABLE sales ADD COLUMN payment_type TEXT NOT NULL DEFAULT 'cash';
+
+CREATE TABLE IF NOT EXISTS customer_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  date TEXT NOT NULL DEFAULT (datetime('now')),
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+`
   }
 ]
 

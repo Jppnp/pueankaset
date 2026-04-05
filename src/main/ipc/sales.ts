@@ -16,21 +16,37 @@ export function registerSaleHandlers(): void {
         remark?: string
         extraAmount?: number
         sellerRole: 'owner' | 'employee'
+        customerId?: number
+        paymentType?: 'cash' | 'card' | 'credit'
       }
     ) => {
       if (!['owner', 'employee'].includes(input.sellerRole)) {
         throw new Error('Invalid seller role')
       }
 
+      const paymentType = input.paymentType ?? 'cash'
+      if (!['cash', 'card', 'credit'].includes(paymentType)) {
+        throw new Error('Invalid payment type')
+      }
+
+      if (paymentType === 'credit' && !input.customerId) {
+        throw new Error('ต้องเลือกลูกค้าก่อนใช้การเชื่อ')
+      }
+
       const db = getDb()
+
+      if (input.customerId) {
+        const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(input.customerId)
+        if (!customer) throw new Error('ไม่พบลูกค้า')
+      }
 
       const createSale = db.transaction(() => {
         const itemsTotal = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
         const total = itemsTotal + (input.extraAmount ?? 0)
 
         const saleResult = db
-          .prepare(`INSERT INTO sales (date, total_amount, remark, seller_role) VALUES (datetime('now'), ?, ?, ?)`)
-          .run(total, input.remark ?? null, input.sellerRole)
+          .prepare(`INSERT INTO sales (date, total_amount, remark, seller_role, customer_id, payment_type) VALUES (datetime('now'), ?, ?, ?, ?, ?)`)
+          .run(total, input.remark ?? null, input.sellerRole, input.customerId ?? null, paymentType)
 
         const saleId = saleResult.lastInsertRowid as number
 
@@ -72,10 +88,10 @@ export function registerSaleHandlers(): void {
     'sales:list',
     (
       _event,
-      params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; storeId?: number }
+      params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; storeId?: number; customerId?: number }
     ) => {
       const db = getDb()
-      const { page, pageSize, dateFrom, dateTo, storeId } = params
+      const { page, pageSize, dateFrom, dateTo, storeId, customerId } = params
 
       const conditions: string[] = []
       const whereParams: unknown[] = []
@@ -94,6 +110,10 @@ export function registerSaleHandlers(): void {
         )
         whereParams.push(storeId)
       }
+      if (customerId) {
+        conditions.push('s.customer_id = ?')
+        whereParams.push(customerId)
+      }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
@@ -102,7 +122,12 @@ export function registerSaleHandlers(): void {
         .get(...whereParams) as { total: number }
 
       const data = db
-        .prepare(`SELECT s.* FROM sales s ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`)
+        .prepare(
+          `SELECT s.*, c.name as customer_name
+           FROM sales s
+           LEFT JOIN customers c ON c.id = s.customer_id
+           ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`
+        )
         .all(...whereParams, pageSize, (page - 1) * pageSize)
 
       return { data, total: countResult.total, page, pageSize }
@@ -112,7 +137,14 @@ export function registerSaleHandlers(): void {
   ipcMain.handle('sales:detail', (_event, id: number) => {
     const db = getDb()
 
-    const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id)
+    const sale = db
+      .prepare(
+        `SELECT s.*, c.name as customer_name, c.phone as customer_phone
+         FROM sales s
+         LEFT JOIN customers c ON c.id = s.customer_id
+         WHERE s.id = ?`
+      )
+      .get(id)
     if (!sale) return null
 
     const items = db

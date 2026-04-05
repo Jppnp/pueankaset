@@ -75,11 +75,34 @@ export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
         </table>
       </div>
 
-      {sale.remark && (
-        <p className="mt-3 text-sm text-gray-500">
-          หมายเหตุ: {sale.remark}
-        </p>
-      )}
+      {/* Customer & payment info */}
+      <div className="mt-3 space-y-1">
+        {sale.customer_name && (
+          <p className="text-sm text-blue-600">
+            ลูกค้า: {sale.customer_name}
+            {sale.customer_phone && <span className="text-blue-400 ml-2">{sale.customer_phone}</span>}
+          </p>
+        )}
+        {sale.payment_type && (
+          <p className="text-sm text-gray-500">
+            วิธีชำระ:{' '}
+            <span className={
+              sale.payment_type === 'credit'
+                ? 'text-orange-600 font-medium'
+                : sale.payment_type === 'card'
+                  ? 'text-blue-600'
+                  : 'text-gray-700'
+            }>
+              {sale.payment_type === 'credit' ? 'เชื่อ' : sale.payment_type === 'card' ? 'บัตร' : 'เงินสด'}
+            </span>
+          </p>
+        )}
+        {sale.remark && (
+          <p className="text-sm text-gray-500">
+            หมายเหตุ: {sale.remark}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

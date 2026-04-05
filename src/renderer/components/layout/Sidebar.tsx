@@ -7,6 +7,7 @@ const allNavItems = [
   { path: '/', label: 'ขายสินค้า', icon: '🛒', ownerOnly: false },
   { path: '/stock', label: 'คลังสินค้า', icon: '📦', ownerOnly: true },
   { path: '/history', label: 'ประวัติการขาย', icon: '📋', ownerOnly: false },
+  { path: '/customers', label: 'ลูกค้า', icon: '👥', ownerOnly: true },
   { path: '/dashboard', label: 'แดชบอร์ด', icon: '📊', ownerOnly: true }
 ]
 

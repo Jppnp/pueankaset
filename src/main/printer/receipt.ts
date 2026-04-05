@@ -5,7 +5,14 @@ export interface ReceiptLine {
 }
 
 export function buildReceipt(
-  sale: { id: number; date: string; total_amount: number; remark: string | null },
+  sale: {
+    id: number
+    date: string
+    total_amount: number
+    remark: string | null
+    customer_name?: string
+    payment_type?: string
+  },
   items: { product_name: string; quantity: number; price: number }[]
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
@@ -15,6 +22,9 @@ export function buildReceipt(
   lines.push({ type: 'separator', content: '================================' })
   lines.push({ type: 'text', content: `ใบเสร็จ #${sale.id}` })
   lines.push({ type: 'text', content: `วันที่: ${formatThaiDate(sale.date)}` })
+  if (sale.customer_name) {
+    lines.push({ type: 'text', content: `ลูกค้า: ${sale.customer_name}` })
+  }
   lines.push({ type: 'separator', content: '--------------------------------' })
 
   for (const item of items) {
@@ -44,6 +54,12 @@ export function buildReceipt(
     content: `รวม: ${formatBaht(sale.total_amount)}`,
     bold: true
   })
+
+  if (sale.payment_type === 'credit') {
+    lines.push({ type: 'text', content: '** เชื่อ **', bold: true })
+  } else if (sale.payment_type === 'card') {
+    lines.push({ type: 'text', content: 'ชำระบัตร' })
+  }
 
   if (sale.remark) {
     lines.push({ type: 'text', content: `หมายเหตุ: ${sale.remark}` })
