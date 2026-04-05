@@ -43,6 +43,16 @@ const api = {
   selectFile: () => ipcRenderer.invoke('import:select-file'),
   getDbInfo: () => ipcRenderer.invoke('import:db-info'),
 
+  // Dashboard
+  getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:summary', dateFrom, dateTo, storeId),
+  getTopProducts: (dateFrom: string, dateTo: string, limit?: number, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:top-products', dateFrom, dateTo, limit, storeId),
+  getLowStockProducts: (threshold?: number, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:low-stock', threshold, storeId),
+  getRevenueTrend: (dateFrom: string, dateTo: string, storeId?: number) =>
+    ipcRenderer.invoke('dashboard:revenue-trend', dateFrom, dateTo, storeId),
+
   // Auth
   verifyOwnerPassword: (password: string) => ipcRenderer.invoke('auth:verify-password', password),
   changeOwnerPassword: (currentPassword: string, newPassword: string) =>

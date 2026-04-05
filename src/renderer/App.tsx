@@ -7,6 +7,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { SalePage } from './pages/SalePage'
 import { StockPage } from './pages/StockPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { DashboardPage } from './pages/DashboardPage'
 
 function AppRoutes() {
   const { role, isOwner } = useRole()
@@ -26,6 +27,10 @@ function AppRoutes() {
             element={isOwner ? <StockPage /> : <Navigate to="/" replace />}
           />
           <Route path="/history" element={<HistoryPage />} />
+          <Route
+            path="/dashboard"
+            element={isOwner ? <DashboardPage /> : <Navigate to="/" replace />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
