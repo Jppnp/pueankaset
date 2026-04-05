@@ -119,6 +119,48 @@ CREATE TABLE IF NOT EXISTS customer_payments (
   FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
 `
+  },
+  {
+    version: 5,
+    sql: `
+CREATE TABLE IF NOT EXISTS refunds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sale_id INTEGER NOT NULL,
+  date TEXT NOT NULL DEFAULT (datetime('now')),
+  total_amount REAL NOT NULL DEFAULT 0,
+  reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (sale_id) REFERENCES sales(id)
+);
+
+CREATE TABLE IF NOT EXISTS refund_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  refund_id INTEGER NOT NULL,
+  sale_item_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL,
+  price REAL NOT NULL,
+  FOREIGN KEY (refund_id) REFERENCES refunds(id),
+  FOREIGN KEY (sale_item_id) REFERENCES sale_items(id)
+);
+`
+  },
+  {
+    version: 6,
+    sql: `
+CREATE TABLE IF NOT EXISTS exchanges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  original_sale_id INTEGER NOT NULL,
+  refund_id INTEGER NOT NULL,
+  new_sale_id INTEGER NOT NULL,
+  price_difference REAL NOT NULL DEFAULT 0,
+  date TEXT NOT NULL DEFAULT (datetime('now')),
+  reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (original_sale_id) REFERENCES sales(id),
+  FOREIGN KEY (refund_id) REFERENCES refunds(id),
+  FOREIGN KEY (new_sale_id) REFERENCES sales(id)
+);
+`
   }
 ]
 

@@ -59,6 +59,8 @@ export interface Sale {
   customer_id: number | null
   payment_type: PaymentType
   customer_name?: string
+  has_refund?: number
+  has_exchange?: number
 }
 
 export interface SaleItem {
@@ -68,11 +70,80 @@ export interface SaleItem {
   quantity: number
   price: number
   cost_price: number
+  refunded_qty?: number
+}
+
+export interface Refund {
+  id: number
+  sale_id: number
+  date: string
+  total_amount: number
+  reason: string | null
+  created_at: string
+}
+
+export interface RefundItem {
+  id: number
+  refund_id: number
+  sale_item_id: number
+  quantity: number
+  price: number
+  product_name: string
+}
+
+export interface RefundWithItems extends Refund {
+  items: RefundItem[]
+}
+
+export interface CreateRefundInput {
+  saleId: number
+  items: { saleItemId: number; quantity: number }[]
+  reason?: string
+}
+
+export interface CreateRefundResult {
+  refundId: number
+  totalAmount: number
+}
+
+export interface Exchange {
+  id: number
+  original_sale_id: number
+  refund_id: number
+  new_sale_id: number
+  price_difference: number
+  date: string
+  reason: string | null
+  created_at: string
+}
+
+export interface ExchangeWithDetails extends Exchange {
+  returnItems: RefundItem[]
+  newItems: (SaleItem & { product_name: string })[]
+}
+
+export interface CreateExchangeInput {
+  originalSaleId: number
+  returnItems: { saleItemId: number; quantity: number }[]
+  newItems: { product_id: number; quantity: number; price: number; cost_price: number }[]
+  reason?: string
+  sellerRole: Role
+}
+
+export interface CreateExchangeResult {
+  exchangeId: number
+  refundId: number
+  newSaleId: number
+  returnTotal: number
+  newTotal: number
+  priceDifference: number
 }
 
 export interface SaleWithItems extends Sale {
   customer_phone?: string
   items: (SaleItem & { product_name: string })[]
+  refunds?: RefundWithItems[]
+  exchanges?: ExchangeWithDetails[]
 }
 
 export interface OrderItem {
@@ -180,6 +251,14 @@ export interface ElectronAPI {
   getCustomersWithDebt: (query?: string) => Promise<CustomerWithDebt[]>
   createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) => Promise<CustomerPayment>
   getCustomerPayments: (customerId: number) => Promise<CustomerPayment[]>
+
+  // Refunds
+  createRefund: (input: CreateRefundInput) => Promise<CreateRefundResult>
+  getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
+
+  // Exchanges
+  createExchange: (input: CreateExchangeInput) => Promise<CreateExchangeResult>
+  getExchangesBySale: (saleId: number) => Promise<ExchangeWithDetails[]>
 
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ProfitSummary>

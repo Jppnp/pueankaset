@@ -1,14 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { SaleWithItems } from '../../lib/types'
 import { formatBaht, formatThaiDate } from '../../lib/format'
+import { useRole } from '../../contexts/RoleContext'
+import { RefundDialog } from './RefundDialog'
+import { ExchangeDialog } from './ExchangeDialog'
 
 interface OrderDetailProps {
   sale: SaleWithItems | null
   loading: boolean
   onPrint: (saleId: number) => void
+  onRefundSuccess?: () => void
 }
 
-export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
+export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDetailProps) {
+  const { isOwner } = useRole()
+  const [showRefund, setShowRefund] = useState(false)
+  const [showExchange, setShowExchange] = useState(false)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400">
@@ -25,19 +33,45 @@ export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
     )
   }
 
+  const hasRefundableItems = sale.items.some(
+    (item) => item.quantity - (item.refunded_qty || 0) > 0
+  )
+
+  const handleRefundSuccess = () => {
+    onRefundSuccess?.()
+  }
+
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">ใบเสร็จ #{sale.id}</h3>
           <p className="text-sm text-gray-500">{formatThaiDate(sale.date)}</p>
         </div>
-        <button
-          onClick={() => onPrint(sale.id)}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
-        >
-          พิมพ์ใบเสร็จ
-        </button>
+        <div className="flex items-center gap-2">
+          {isOwner && hasRefundableItems && (
+            <>
+              <button
+                onClick={() => setShowExchange(true)}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+              >
+                เปลี่ยนสินค้า
+              </button>
+              <button
+                onClick={() => setShowRefund(true)}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+              >
+                คืนสินค้า
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => onPrint(sale.id)}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+          >
+            พิมพ์ใบเสร็จ
+          </button>
+        </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg overflow-hidden">
@@ -51,16 +85,24 @@ export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {sale.items.map((item) => (
-              <tr key={item.id}>
-                <td className="px-4 py-2 text-sm">{item.product_name}</td>
-                <td className="px-4 py-2 text-sm text-right">{item.quantity}</td>
-                <td className="px-4 py-2 text-sm text-right">{formatBaht(item.price)}</td>
-                <td className="px-4 py-2 text-sm text-right font-medium">
-                  {formatBaht(item.price * item.quantity)}
-                </td>
-              </tr>
-            ))}
+            {sale.items.map((item) => {
+              const refundedQty = item.refunded_qty || 0
+              return (
+                <tr key={item.id}>
+                  <td className="px-4 py-2 text-sm">{item.product_name}</td>
+                  <td className="px-4 py-2 text-sm text-right">
+                    {item.quantity}
+                    {refundedQty > 0 && (
+                      <span className="text-red-500 text-xs ml-1">(คืน {refundedQty})</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-sm text-right">{formatBaht(item.price)}</td>
+                  <td className="px-4 py-2 text-sm text-right font-medium">
+                    {formatBaht(item.price * item.quantity)}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t-2">
@@ -76,7 +118,7 @@ export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
       </div>
 
       {/* Customer & payment info */}
-      <div className="mt-3 space-y-1">
+      <div className="space-y-1">
         {sale.customer_name && (
           <p className="text-sm text-blue-600">
             ลูกค้า: {sale.customer_name}
@@ -103,6 +145,101 @@ export function OrderDetail({ sale, loading, onPrint }: OrderDetailProps) {
           </p>
         )}
       </div>
+
+      {/* Refund history */}
+      {sale.refunds && sale.refunds.length > 0 && (
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-semibold text-red-700 mb-2">ประวัติการคืนสินค้า</h4>
+          <div className="space-y-3">
+            {sale.refunds.map((refund) => (
+              <div key={refund.id} className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-500">{formatThaiDate(refund.date)}</span>
+                  <span className="text-sm font-semibold text-red-700">
+                    -{formatBaht(refund.total_amount)}
+                  </span>
+                </div>
+                {refund.reason && (
+                  <p className="text-xs text-gray-500 mb-1">เหตุผล: {refund.reason}</p>
+                )}
+                <div className="space-y-0.5">
+                  {refund.items.map((ri) => (
+                    <p key={ri.id} className="text-xs text-red-600">
+                      {ri.product_name} x{ri.quantity} ({formatBaht(ri.price * ri.quantity)})
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Exchange history */}
+      {sale.exchanges && sale.exchanges.length > 0 && (
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-semibold text-blue-700 mb-2">ประวัติการเปลี่ยนสินค้า</h4>
+          <div className="space-y-3">
+            {sale.exchanges.map((ex) => (
+              <div key={ex.id} className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-500">{formatThaiDate(ex.date)}</span>
+                  <span className={`text-sm font-semibold ${
+                    ex.price_difference > 0 ? 'text-red-600' : ex.price_difference < 0 ? 'text-green-600' : 'text-gray-600'
+                  }`}>
+                    {ex.price_difference > 0
+                      ? `ลูกค้าจ่ายเพิ่ม ${formatBaht(ex.price_difference)}`
+                      : ex.price_difference < 0
+                        ? `คืนเงิน ${formatBaht(Math.abs(ex.price_difference))}`
+                        : 'ไม่มีส่วนต่าง'}
+                  </span>
+                </div>
+                {ex.reason && (
+                  <p className="text-xs text-gray-500 mb-2">เหตุผล: {ex.reason}</p>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-orange-600 font-medium mb-1">สินค้าที่คืน:</p>
+                    {ex.returnItems.map((ri) => (
+                      <p key={ri.id} className="text-xs text-gray-600">
+                        {ri.product_name} x{ri.quantity}
+                      </p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="text-xs text-green-600 font-medium mb-1">สินค้าใหม่:</p>
+                    {ex.newItems.map((ni) => (
+                      <p key={ni.id} className="text-xs text-gray-600">
+                        {ni.product_name} x{ni.quantity}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Refund dialog */}
+      {showRefund && (
+        <RefundDialog
+          open={showRefund}
+          onClose={() => setShowRefund(false)}
+          sale={sale}
+          onSuccess={handleRefundSuccess}
+        />
+      )}
+
+      {/* Exchange dialog */}
+      {showExchange && (
+        <ExchangeDialog
+          open={showExchange}
+          onClose={() => setShowExchange(false)}
+          sale={sale}
+          onSuccess={handleRefundSuccess}
+        />
+      )}
     </div>
   )
 }
