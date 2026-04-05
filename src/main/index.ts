@@ -12,6 +12,7 @@ import { registerAuthHandlers } from './ipc/auth'
 import { registerDashboardHandlers } from './ipc/dashboard'
 import { registerCustomerHandlers } from './ipc/customers'
 import { registerRefundHandlers } from './ipc/refunds'
+import { registerExchangeHandlers } from './ipc/exchanges'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -58,6 +59,7 @@ app.whenReady().then(() => {
   registerDashboardHandlers()
   registerCustomerHandlers()
   registerRefundHandlers()
+  registerExchangeHandlers()
 
   createWindow()
 

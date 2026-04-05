@@ -65,6 +65,16 @@ const api = {
     ipcRenderer.invoke('refunds:create', input),
   getRefundsBySale: (saleId: number) => ipcRenderer.invoke('refunds:list-by-sale', saleId),
 
+  // Exchanges
+  createExchange: (input: {
+    originalSaleId: number
+    returnItems: { saleItemId: number; quantity: number }[]
+    newItems: { product_id: number; quantity: number; price: number; cost_price: number }[]
+    reason?: string
+    sellerRole: string
+  }) => ipcRenderer.invoke('exchanges:create', input),
+  getExchangesBySale: (saleId: number) => ipcRenderer.invoke('exchanges:list-by-sale', saleId),
+
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
     ipcRenderer.invoke('dashboard:summary', dateFrom, dateTo, storeId),

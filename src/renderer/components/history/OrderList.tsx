@@ -35,6 +35,11 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
                     คืนสินค้า
                   </span>
                 ) : null}
+                {sale.has_exchange ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 ml-1">
+                    เปลี่ยนสินค้า
+                  </span>
+                ) : null}
               </span>
               <p className="text-xs text-gray-500">{formatThaiDate(sale.date)}</p>
             </div>

@@ -124,7 +124,8 @@ export function registerSaleHandlers(): void {
       const data = db
         .prepare(
           `SELECT s.*, c.name as customer_name,
-            EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund
+            EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund,
+            EXISTS (SELECT 1 FROM exchanges e WHERE e.original_sale_id = s.id) as has_exchange
            FROM sales s
            LEFT JOIN customers c ON c.id = s.customer_id
            ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`
@@ -175,7 +176,32 @@ export function registerSaleHandlers(): void {
       items: getRefundItems.all(r.id)
     }))
 
-    return { ...sale, items, refunds: refundsWithItems }
+    // Fetch exchanges
+    const exchanges = db
+      .prepare('SELECT * FROM exchanges WHERE original_sale_id = ? ORDER BY date DESC')
+      .all(id) as { id: number; refund_id: number; new_sale_id: number }[]
+
+    const getExchangeRefundItems = db.prepare(
+      `SELECT ri.*, p.name as product_name
+       FROM refund_items ri
+       JOIN sale_items si ON si.id = ri.sale_item_id
+       JOIN products p ON p.id = si.product_id
+       WHERE ri.refund_id = ?`
+    )
+    const getExchangeNewItems = db.prepare(
+      `SELECT si.*, p.name as product_name
+       FROM sale_items si
+       JOIN products p ON p.id = si.product_id
+       WHERE si.sale_id = ?`
+    )
+
+    const exchangesWithDetails = exchanges.map((e) => ({
+      ...e,
+      returnItems: getExchangeRefundItems.all(e.refund_id),
+      newItems: getExchangeNewItems.all(e.new_sale_id)
+    }))
+
+    return { ...sale, items, refunds: refundsWithItems, exchanges: exchangesWithDetails }
   })
 
   ipcMain.handle(

@@ -60,6 +60,7 @@ export interface Sale {
   payment_type: PaymentType
   customer_name?: string
   has_refund?: number
+  has_exchange?: number
 }
 
 export interface SaleItem {
@@ -105,10 +106,44 @@ export interface CreateRefundResult {
   totalAmount: number
 }
 
+export interface Exchange {
+  id: number
+  original_sale_id: number
+  refund_id: number
+  new_sale_id: number
+  price_difference: number
+  date: string
+  reason: string | null
+  created_at: string
+}
+
+export interface ExchangeWithDetails extends Exchange {
+  returnItems: RefundItem[]
+  newItems: (SaleItem & { product_name: string })[]
+}
+
+export interface CreateExchangeInput {
+  originalSaleId: number
+  returnItems: { saleItemId: number; quantity: number }[]
+  newItems: { product_id: number; quantity: number; price: number; cost_price: number }[]
+  reason?: string
+  sellerRole: Role
+}
+
+export interface CreateExchangeResult {
+  exchangeId: number
+  refundId: number
+  newSaleId: number
+  returnTotal: number
+  newTotal: number
+  priceDifference: number
+}
+
 export interface SaleWithItems extends Sale {
   customer_phone?: string
   items: (SaleItem & { product_name: string })[]
   refunds?: RefundWithItems[]
+  exchanges?: ExchangeWithDetails[]
 }
 
 export interface OrderItem {
@@ -220,6 +255,10 @@ export interface ElectronAPI {
   // Refunds
   createRefund: (input: CreateRefundInput) => Promise<CreateRefundResult>
   getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
+
+  // Exchanges
+  createExchange: (input: CreateExchangeInput) => Promise<CreateExchangeResult>
+  getExchangesBySale: (saleId: number) => Promise<ExchangeWithDetails[]>
 
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ProfitSummary>
