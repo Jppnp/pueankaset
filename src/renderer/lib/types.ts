@@ -233,6 +233,20 @@ export interface StockMovement {
   created_at: string
 }
 
+export interface BackupFile {
+  filename: string
+  path: string
+  size: number
+  createdAt: string
+}
+
+export interface BackupInfo {
+  dbSize: number
+  backupDir: string
+  lastAutoBackup: string | null
+  savedBackupPath: string | null
+}
+
 export interface CreateSaleInput {
   items: {
     product_id: number
@@ -351,6 +365,12 @@ export interface ElectronAPI {
     currentPassword: string,
     newPassword: string
   ) => Promise<{ success: boolean; error?: string }>
+
+  // Backup
+  backupExport: () => Promise<{ success: boolean; path?: string; error?: string }>
+  backupRestore: () => Promise<{ success: boolean; needsRestart?: boolean; error?: string }>
+  backupList: () => Promise<BackupFile[]>
+  backupInfo: () => Promise<BackupInfo>
 }
 
 declare global {

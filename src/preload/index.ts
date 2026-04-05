@@ -107,7 +107,13 @@ const api = {
   // Auth
   verifyOwnerPassword: (password: string) => ipcRenderer.invoke('auth:verify-password', password),
   changeOwnerPassword: (currentPassword: string, newPassword: string) =>
-    ipcRenderer.invoke('auth:change-password', currentPassword, newPassword)
+    ipcRenderer.invoke('auth:change-password', currentPassword, newPassword),
+
+  // Backup
+  backupExport: () => ipcRenderer.invoke('backup:export'),
+  backupRestore: () => ipcRenderer.invoke('backup:restore'),
+  backupList: () => ipcRenderer.invoke('backup:list'),
+  backupInfo: () => ipcRenderer.invoke('backup:info')
 }
 
 contextBridge.exposeInMainWorld('api', api)

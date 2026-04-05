@@ -3,6 +3,7 @@ import { app } from 'electron'
 import path from 'path'
 
 let db: Database.Database
+let dbFilePath: string
 
 export function getDb(): Database.Database {
   if (!db) {
@@ -11,10 +12,15 @@ export function getDb(): Database.Database {
   return db
 }
 
+export function getDbPath(): string {
+  return dbFilePath
+}
+
 export function initDatabase(): void {
   const userDataPath = app.getPath('userData')
   const dbPath = path.join(userDataPath, 'pueankaset.db')
 
+  dbFilePath = dbPath
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')

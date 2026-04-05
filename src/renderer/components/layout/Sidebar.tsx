@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useRole } from '../../contexts/RoleContext'
 import { ChangePasswordDialog } from '../auth/ChangePasswordDialog'
+import { BackupDialog } from '../backup/BackupDialog'
 
 const allNavItems = [
   { path: '/', label: 'ขายสินค้า', icon: '🛒', ownerOnly: false },
@@ -17,6 +18,7 @@ export function Sidebar() {
   const { role, isOwner, logout } = useRole()
   const navigate = useNavigate()
   const [showChangePassword, setShowChangePassword] = useState(false)
+  const [showBackup, setShowBackup] = useState(false)
 
   const navItems = useMemo(() => allNavItems.filter((item) => !item.ownerOnly || isOwner), [isOwner])
 
@@ -62,12 +64,20 @@ export function Sidebar() {
           </button>
         </div>
         {isOwner && (
-          <button
-            onClick={() => setShowChangePassword(true)}
-            className="text-xs text-green-400 hover:text-white transition-colors mb-2"
-          >
-            เปลี่ยนรหัสผ่าน
-          </button>
+          <div className="flex flex-col gap-1 mb-2">
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="text-xs text-green-400 hover:text-white transition-colors text-left"
+            >
+              เปลี่ยนรหัสผ่าน
+            </button>
+            <button
+              onClick={() => setShowBackup(true)}
+              className="text-xs text-green-400 hover:text-white transition-colors text-left"
+            >
+              สำรองข้อมูล
+            </button>
+          </div>
         )}
         <div className="text-xs text-green-400">เวอร์ชัน {__APP_VERSION__}</div>
       </div>
@@ -75,6 +85,7 @@ export function Sidebar() {
         open={showChangePassword}
         onClose={() => setShowChangePassword(false)}
       />
+      <BackupDialog open={showBackup} onClose={() => setShowBackup(false)} />
     </aside>
   )
 }
