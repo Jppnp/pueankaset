@@ -59,6 +59,7 @@ export interface Sale {
   customer_id: number | null
   payment_type: PaymentType
   customer_name?: string
+  has_refund?: number
 }
 
 export interface SaleItem {
@@ -68,11 +69,46 @@ export interface SaleItem {
   quantity: number
   price: number
   cost_price: number
+  refunded_qty?: number
+}
+
+export interface Refund {
+  id: number
+  sale_id: number
+  date: string
+  total_amount: number
+  reason: string | null
+  created_at: string
+}
+
+export interface RefundItem {
+  id: number
+  refund_id: number
+  sale_item_id: number
+  quantity: number
+  price: number
+  product_name: string
+}
+
+export interface RefundWithItems extends Refund {
+  items: RefundItem[]
+}
+
+export interface CreateRefundInput {
+  saleId: number
+  items: { saleItemId: number; quantity: number }[]
+  reason?: string
+}
+
+export interface CreateRefundResult {
+  refundId: number
+  totalAmount: number
 }
 
 export interface SaleWithItems extends Sale {
   customer_phone?: string
   items: (SaleItem & { product_name: string })[]
+  refunds?: RefundWithItems[]
 }
 
 export interface OrderItem {
@@ -180,6 +216,10 @@ export interface ElectronAPI {
   getCustomersWithDebt: (query?: string) => Promise<CustomerWithDebt[]>
   createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) => Promise<CustomerPayment>
   getCustomerPayments: (customerId: number) => Promise<CustomerPayment[]>
+
+  // Refunds
+  createRefund: (input: CreateRefundInput) => Promise<CreateRefundResult>
+  getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
 
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ProfitSummary>

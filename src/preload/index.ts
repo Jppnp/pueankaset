@@ -60,6 +60,11 @@ const api = {
   getCustomerPayments: (customerId: number) =>
     ipcRenderer.invoke('customer-payments:list', customerId),
 
+  // Refunds
+  createRefund: (input: { saleId: number; items: { saleItemId: number; quantity: number }[]; reason?: string }) =>
+    ipcRenderer.invoke('refunds:create', input),
+  getRefundsBySale: (saleId: number) => ipcRenderer.invoke('refunds:list-by-sale', saleId),
+
   // Dashboard
   getDashboardSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
     ipcRenderer.invoke('dashboard:summary', dateFrom, dateTo, storeId),

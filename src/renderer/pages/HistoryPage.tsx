@@ -73,6 +73,16 @@ export function HistoryPage() {
     }
   }, [])
 
+  const handleRefundSuccess = useCallback(() => {
+    // Re-fetch the detail, sales list, and profit summary
+    if (selectedId) {
+      handleSelect(selectedId)
+    }
+    const range = getDateRange()
+    fetchSales({ page: sales.page, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
+    fetchProfit(range.from, range.to, selectedStoreId)
+  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, selectedStoreId])
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-4 border-b bg-white">
@@ -128,7 +138,7 @@ export function HistoryPage() {
 
         {/* Right - Detail */}
         <div className="flex-1 overflow-y-auto">
-          <OrderDetail sale={detail} loading={detailLoading} onPrint={handlePrint} />
+          <OrderDetail sale={detail} loading={detailLoading} onPrint={handlePrint} onRefundSuccess={handleRefundSuccess} />
         </div>
       </div>
 

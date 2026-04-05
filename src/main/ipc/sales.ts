@@ -123,7 +123,8 @@ export function registerSaleHandlers(): void {
 
       const data = db
         .prepare(
-          `SELECT s.*, c.name as customer_name
+          `SELECT s.*, c.name as customer_name,
+            EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund
            FROM sales s
            LEFT JOIN customers c ON c.id = s.customer_id
            ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`
@@ -149,14 +150,32 @@ export function registerSaleHandlers(): void {
 
     const items = db
       .prepare(
-        `SELECT si.*, p.name as product_name
+        `SELECT si.*, p.name as product_name,
+          COALESCE((SELECT SUM(ri.quantity) FROM refund_items ri WHERE ri.sale_item_id = si.id), 0) as refunded_qty
          FROM sale_items si
          JOIN products p ON p.id = si.product_id
          WHERE si.sale_id = ?`
       )
       .all(id)
 
-    return { ...sale, items }
+    const refunds = db
+      .prepare('SELECT * FROM refunds WHERE sale_id = ? ORDER BY date DESC')
+      .all(id) as { id: number }[]
+
+    const getRefundItems = db.prepare(
+      `SELECT ri.*, p.name as product_name
+       FROM refund_items ri
+       JOIN sale_items si ON si.id = ri.sale_item_id
+       JOIN products p ON p.id = si.product_id
+       WHERE ri.refund_id = ?`
+    )
+
+    const refundsWithItems = refunds.map((r) => ({
+      ...r,
+      items: getRefundItems.all(r.id)
+    }))
+
+    return { ...sale, items, refunds: refundsWithItems }
   })
 
   ipcMain.handle(
@@ -182,21 +201,50 @@ export function registerSaleHandlers(): void {
 
       const where = `WHERE ${conditions.join(' AND ')}`
 
-      const result = db
+      const gross = db
         .prepare(
           `SELECT
             COALESCE(SUM(si.price * si.quantity), 0) as total_revenue,
             COALESCE(SUM(si.cost_price * si.quantity), 0) as total_cost,
-            COALESCE(SUM(si.price * si.quantity) - SUM(si.cost_price * si.quantity), 0) as total_profit,
             COUNT(DISTINCT s.id) as sale_count
            FROM sales s
            JOIN sale_items si ON si.sale_id = s.id
            JOIN products p ON p.id = si.product_id
            ${where}`
         )
-        .get(...whereParams)
+        .get(...whereParams) as { total_revenue: number; total_cost: number; sale_count: number }
 
-      return result
+      // Subtract refunded amounts
+      const refundConditions: string[] = ['p.exclude_from_profit = 0']
+      const refundParams: unknown[] = []
+      if (dateFrom) { refundConditions.push('s.date >= ?'); refundParams.push(dateFrom) }
+      if (dateTo) { refundConditions.push('s.date <= ?'); refundParams.push(dateTo) }
+      if (storeId) { refundConditions.push('p.store_id = ?'); refundParams.push(storeId) }
+      const refundWhere = `WHERE ${refundConditions.join(' AND ')}`
+
+      const refunded = db
+        .prepare(
+          `SELECT
+            COALESCE(SUM(ri.price * ri.quantity), 0) as refund_revenue,
+            COALESCE(SUM(si.cost_price * ri.quantity), 0) as refund_cost
+           FROM refund_items ri
+           JOIN refunds r ON r.id = ri.refund_id
+           JOIN sale_items si ON si.id = ri.sale_item_id
+           JOIN sales s ON s.id = r.sale_id
+           JOIN products p ON p.id = si.product_id
+           ${refundWhere}`
+        )
+        .get(...refundParams) as { refund_revenue: number; refund_cost: number }
+
+      const total_revenue = gross.total_revenue - refunded.refund_revenue
+      const total_cost = gross.total_cost - refunded.refund_cost
+
+      return {
+        total_revenue,
+        total_cost,
+        total_profit: total_revenue - total_cost,
+        sale_count: gross.sale_count
+      }
     }
   )
 }
