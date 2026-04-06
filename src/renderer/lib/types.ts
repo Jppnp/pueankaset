@@ -274,6 +274,7 @@ export interface ElectronAPI {
   createProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => Promise<Product>
   updateProduct: (id: number, product: Partial<Product>) => Promise<Product>
   searchProducts: (query: string) => Promise<Product[]>
+  checkDuplicateProduct: (name: string, excludeId?: number) => Promise<{ id: number; name: string } | null>
 
   // Sales
   createSale: (input: CreateSaleInput) => Promise<CreateSaleResult>
@@ -291,6 +292,7 @@ export interface ElectronAPI {
   // Customers
   getCustomers: (query?: string) => Promise<Customer[]>
   getCustomer: (id: number) => Promise<Customer | null>
+  checkDuplicateCustomer: (name: string, excludeId?: number) => Promise<{ id: number; name: string } | null>
   createCustomer: (input: { name: string; phone?: string; address?: string }) => Promise<Customer>
   updateCustomer: (id: number, updates: { name?: string; phone?: string; address?: string }) => Promise<Customer>
   deleteCustomer: (id: number) => Promise<{ success: boolean; error?: string }>
@@ -358,6 +360,17 @@ export interface ElectronAPI {
   importFromStore: (filePath: string, storeId: number) => Promise<{ imported: number }>
   selectFile: () => Promise<string | null>
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
+
+  // Export
+  exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportProducts: (storeId?: number) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportExpenses: (params: { dateFrom?: string; dateTo?: string }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportCustomers: () => Promise<{ success: boolean; path?: string; error?: string }>
+
+  // Settings
+  getSetting: (key: string) => Promise<string | null>
+  setSetting: (key: string, value: string) => Promise<{ success: boolean }>
 
   // Auth
   verifyOwnerPassword: (password: string) => Promise<{ success: boolean; error?: string }>

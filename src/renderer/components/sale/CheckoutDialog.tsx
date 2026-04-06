@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
 import { formatBaht, calcCardFee } from '../../lib/format'
+import { useRole } from '../../contexts/RoleContext'
 import type { OrderItem, Customer, PaymentType } from '../../lib/types'
 
 interface CheckoutDialogProps {
@@ -18,11 +19,7 @@ interface CheckoutDialogProps {
   }) => void
 }
 
-const PAYMENT_OPTIONS: { value: PaymentType; label: string; requiresCustomer: boolean }[] = [
-  { value: 'cash', label: 'เงินสด', requiresCustomer: false },
-  { value: 'card', label: 'บัตร (+5%)', requiresCustomer: false },
-  { value: 'credit', label: 'เชื่อ', requiresCustomer: true }
-]
+const DEFAULT_CARD_FEE_PERCENT = 5
 
 export function CheckoutDialog({
   open,
@@ -36,6 +33,10 @@ export function CheckoutDialog({
   const [print, setPrint] = useState(false)
   const [paymentType, setPaymentType] = useState<PaymentType>('cash')
   const [submitting, setSubmitting] = useState(false)
+  const [cardFeePercent, setCardFeePercent] = useState(DEFAULT_CARD_FEE_PERCENT)
+  const [editingFee, setEditingFee] = useState(false)
+  const [feeInput, setFeeInput] = useState('')
+  const { isOwner } = useRole()
 
   useEffect(() => {
     if (open) {
@@ -43,6 +44,12 @@ export function CheckoutDialog({
       setPrint(false)
       setPaymentType('cash')
       setSubmitting(false)
+      setEditingFee(false)
+      // Load saved card fee percentage
+      window.api.getSetting('card_fee_percent').then((val) => {
+        const num = val ? parseFloat(val) : DEFAULT_CARD_FEE_PERCENT
+        setCardFeePercent(isNaN(num) || num < 0 ? DEFAULT_CARD_FEE_PERCENT : num)
+      })
     }
   }, [open])
 
@@ -53,9 +60,23 @@ export function CheckoutDialog({
     }
   }, [selectedCustomer, paymentType])
 
-  const cardFee = calcCardFee(total)
+  const cardFee = calcCardFee(total, cardFeePercent)
   const isCard = paymentType === 'card'
   const grandTotal = isCard ? total + cardFee : total
+
+  const paymentOptions: { value: PaymentType; label: string; requiresCustomer: boolean }[] = [
+    { value: 'cash', label: 'เงินสด', requiresCustomer: false },
+    { value: 'card', label: `บัตร (+${cardFeePercent}%)`, requiresCustomer: false },
+    { value: 'credit', label: 'เชื่อ', requiresCustomer: true }
+  ]
+
+  const handleSaveFeePercent = async () => {
+    const num = parseFloat(feeInput)
+    if (isNaN(num) || num < 0 || num > 100) return
+    await window.api.setSetting('card_fee_percent', num.toString())
+    setCardFeePercent(num)
+    setEditingFee(false)
+  }
 
   const handleConfirm = async () => {
     if (submitting) return
@@ -111,7 +132,7 @@ export function CheckoutDialog({
             </div>
             {isCard && (
               <div className="flex justify-between items-center text-sm text-orange-600">
-                <span>ค่าธรรมเนียมบัตร (5%)</span>
+                <span>ค่าธรรมเนียมบัตร ({cardFeePercent}%)</span>
                 <span>+{formatBaht(cardFee)}</span>
               </div>
             )}
@@ -126,7 +147,7 @@ export function CheckoutDialog({
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">วิธีชำระเงิน</p>
           <div className="flex gap-2">
-            {PAYMENT_OPTIONS.map((opt) => {
+            {paymentOptions.map((opt) => {
               const disabled = opt.requiresCustomer && !selectedCustomer
               const selected = paymentType === opt.value
               return (
@@ -149,6 +170,50 @@ export function CheckoutDialog({
           </div>
           {!selectedCustomer && (
             <p className="text-xs text-gray-400 mt-1">* เลือกลูกค้าก่อนเพื่อใช้การเชื่อ</p>
+          )}
+
+          {/* Card fee configuration (owner only) */}
+          {isOwner && isCard && (
+            <div className="mt-2">
+              {editingFee ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={feeInput}
+                    onChange={(e) => setFeeInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveFeePercent()}
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                    autoFocus
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                  <button
+                    onClick={handleSaveFeePercent}
+                    className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                  >
+                    บันทึก
+                  </button>
+                  <button
+                    onClick={() => setEditingFee(false)}
+                    className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setFeeInput(cardFeePercent.toString())
+                    setEditingFee(true)
+                  }}
+                  className="text-xs text-blue-500 hover:text-blue-700 underline"
+                >
+                  ปรับเปอร์เซ็นต์ค่าธรรมเนียม
+                </button>
+              )}
+            </div>
           )}
         </div>
 

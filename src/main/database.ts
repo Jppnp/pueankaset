@@ -206,6 +206,13 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE INDEX idx_expenses_date ON expenses(date);
 CREATE INDEX idx_expenses_category ON expenses(category);
 `
+  },
+  {
+    version: 9,
+    sql: `
+CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
+`
   }
 ]
 

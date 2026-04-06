@@ -16,6 +16,8 @@ import { registerExchangeHandlers } from './ipc/exchanges'
 import { registerStockMovementHandlers } from './ipc/stock-movements'
 import { registerExpenseHandlers } from './ipc/expenses'
 import { registerBackupHandlers, runAutoBackup } from './ipc/backup'
+import { registerSettingsHandlers } from './ipc/settings'
+import { registerExportHandlers } from './ipc/export'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -66,6 +68,8 @@ app.whenReady().then(() => {
   registerStockMovementHandlers()
   registerExpenseHandlers()
   registerBackupHandlers()
+  registerSettingsHandlers()
+  registerExportHandlers()
 
   // Auto-backup database on every app start
   runAutoBackup()

@@ -20,6 +20,7 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
   const [date, setDate] = useState(toISODate(new Date()))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const isCustom = category === '__custom__'
 
@@ -45,15 +46,51 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
         setDate(toISODate(new Date()))
       }
       setError(null)
+      setFieldErrors({})
       setSaving(false)
     }
   }, [open, expense])
 
+  const handleAmountChange = (value: string) => {
+    setAmount(value)
+    const num = parseFloat(value)
+    if (value && (isNaN(num) || num <= 0)) {
+      setFieldErrors((e) => ({ ...e, amount: 'จำนวนเงินต้องมากกว่า 0' }))
+    } else {
+      setFieldErrors((e) => { const { amount: _, ...rest } = e; return rest })
+    }
+  }
+
+  const handleCustomCategoryChange = (value: string) => {
+    setCustomCategory(value)
+    if (isCustom && !value.trim()) {
+      setFieldErrors((e) => ({ ...e, category: 'กรุณาระบุหมวดหมู่' }))
+    } else {
+      setFieldErrors((e) => { const { category: _, ...rest } = e; return rest })
+    }
+  }
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value)
+    if (value !== '__custom__') {
+      setFieldErrors((e) => { const { category: _, ...rest } = e; return rest })
+    } else if (!customCategory.trim()) {
+      setFieldErrors((e) => ({ ...e, category: 'กรุณาระบุหมวดหมู่' }))
+    }
+  }
+
   const handleSave = async () => {
     const finalCategory = isCustom ? customCategory.trim() : category
-    if (!finalCategory) { setError('กรุณาระบุหมวดหมู่'); return }
+    if (!finalCategory) {
+      setFieldErrors((e) => ({ ...e, category: 'กรุณาระบุหมวดหมู่' }))
+      return
+    }
     const num = parseFloat(amount)
-    if (!num || num <= 0) { setError('จำนวนเงินต้องมากกว่า 0'); return }
+    if (!num || num <= 0) {
+      setFieldErrors((e) => ({ ...e, amount: 'จำนวนเงินต้องมากกว่า 0' }))
+      return
+    }
+    if (Object.keys(fieldErrors).length > 0) return
 
     setSaving(true)
     setError(null)
@@ -61,14 +98,14 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
       if (expense) {
         await window.api.updateExpense(expense.id, {
           category: finalCategory,
-          amount: num,
+          amount: Math.round(num * 100) / 100,
           description: description.trim() || undefined,
           date: `${date} 00:00:00`
         })
       } else {
         await window.api.createExpense({
           category: finalCategory,
-          amount: num,
+          amount: Math.round(num * 100) / 100,
           description: description.trim() || undefined,
           date: `${date} 00:00:00`,
           createdBy
@@ -93,7 +130,7 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ *</label>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             {EXPENSE_CATEGORIES.map((c) => (
@@ -105,10 +142,15 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
             <input
               type="text"
               value={customCategory}
-              onChange={(e) => setCustomCategory(e.target.value)}
+              onChange={(e) => handleCustomCategoryChange(e.target.value)}
               placeholder="ระบุหมวดหมู่"
-              className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className={`w-full mt-2 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                fieldErrors.category ? 'border-red-400' : 'border-gray-300'
+              }`}
             />
+          )}
+          {fieldErrors.category && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.category}</p>
           )}
         </div>
         <div>
@@ -116,12 +158,17 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           <input
             type="number"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => handleAmountChange(e.target.value)}
             min={0}
             step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+              fieldErrors.amount ? 'border-red-400' : 'border-gray-300'
+            }`}
             autoFocus
           />
+          {fieldErrors.amount && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.amount}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">วันที่</label>
@@ -148,7 +195,7 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || Object.keys(fieldErrors).length > 0}
             className="flex-[2] px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50"
           >
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}

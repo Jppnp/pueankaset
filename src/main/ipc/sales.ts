@@ -42,8 +42,8 @@ export function registerSaleHandlers(): void {
       }
 
       const createSale = db.transaction(() => {
-        const itemsTotal = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-        const total = itemsTotal + (input.extraAmount ?? 0)
+        const itemsTotal = Math.round(input.items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100
+        const total = Math.round((itemsTotal + (input.extraAmount ?? 0)) * 100) / 100
 
         const saleResult = db
           .prepare(`INSERT INTO sales (date, total_amount, remark, seller_role, customer_id, payment_type) VALUES (datetime('now'), ?, ?, ?, ?, ?)`)
@@ -68,11 +68,6 @@ export function registerSaleHandlers(): void {
             | undefined
           if (!product) {
             throw new Error(`ไม่พบสินค้า (id: ${item.product_id})`)
-          }
-          if (product.stock_on_hand < item.quantity) {
-            throw new Error(
-              `สินค้า "${product.name}" มีสต็อกไม่เพียงพอ (คงเหลือ ${product.stock_on_hand} ต้องการ ${item.quantity})`
-            )
           }
           insertItem.run(saleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
@@ -274,8 +269,8 @@ export function registerSaleHandlers(): void {
         )
         .get(...refundParams) as { refund_revenue: number; refund_cost: number }
 
-      const total_revenue = gross.total_revenue - refunded.refund_revenue
-      const total_cost = gross.total_cost - refunded.refund_cost
+      const total_revenue = Math.round((gross.total_revenue - refunded.refund_revenue) * 100) / 100
+      const total_cost = Math.round((gross.total_cost - refunded.refund_cost) * 100) / 100
 
       // Expenses for the date range (business-wide, not store-specific)
       const expenseConditions: string[] = []
@@ -288,7 +283,7 @@ export function registerSaleHandlers(): void {
         .prepare(`SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses ${expenseWhere}`)
         .get(...expenseParams) as { total_expenses: number }
 
-      const totalProfit = total_revenue - total_cost
+      const totalProfit = Math.round((total_revenue - total_cost) * 100) / 100
 
       return {
         total_revenue,
@@ -296,7 +291,7 @@ export function registerSaleHandlers(): void {
         total_profit: totalProfit,
         sale_count: gross.sale_count,
         total_expenses: expenses.total_expenses,
-        net_profit: totalProfit - expenses.total_expenses
+        net_profit: Math.round((totalProfit - expenses.total_expenses) * 100) / 100
       }
     }
   )

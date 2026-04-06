@@ -9,6 +9,8 @@ const api = {
   updateProduct: (id: number, updates: Record<string, unknown>) =>
     ipcRenderer.invoke('products:update', id, updates),
   searchProducts: (query: string) => ipcRenderer.invoke('products:search', query),
+  checkDuplicateProduct: (name: string, excludeId?: number) =>
+    ipcRenderer.invoke('products:check-duplicate', name, excludeId),
 
   // Sales
   createSale: (input: { items: unknown[]; remark?: string; extraAmount?: number; sellerRole: string }) =>
@@ -46,6 +48,8 @@ const api = {
   // Customers
   getCustomers: (query?: string) => ipcRenderer.invoke('customers:list', query),
   getCustomer: (id: number) => ipcRenderer.invoke('customers:get', id),
+  checkDuplicateCustomer: (name: string, excludeId?: number) =>
+    ipcRenderer.invoke('customers:check-duplicate', name, excludeId),
   createCustomer: (input: { name: string; phone?: string; address?: string }) =>
     ipcRenderer.invoke('customers:create', input),
   updateCustomer: (id: number, updates: { name?: string; phone?: string; address?: string }) =>
@@ -103,6 +107,20 @@ const api = {
     ipcRenderer.invoke('dashboard:low-stock', threshold, storeId),
   getRevenueTrend: (dateFrom: string, dateTo: string, storeId?: number) =>
     ipcRenderer.invoke('dashboard:revenue-trend', dateFrom, dateTo, storeId),
+
+  // Export
+  exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) =>
+    ipcRenderer.invoke('export:sales', params),
+  exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) =>
+    ipcRenderer.invoke('export:sales-detail', params),
+  exportProducts: (storeId?: number) => ipcRenderer.invoke('export:products', storeId),
+  exportExpenses: (params: { dateFrom?: string; dateTo?: string }) =>
+    ipcRenderer.invoke('export:expenses', params),
+  exportCustomers: () => ipcRenderer.invoke('export:customers'),
+
+  // Settings
+  getSetting: (key: string) => ipcRenderer.invoke('settings:get', key),
+  setSetting: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
 
   // Auth
   verifyOwnerPassword: (password: string) => ipcRenderer.invoke('auth:verify-password', password),

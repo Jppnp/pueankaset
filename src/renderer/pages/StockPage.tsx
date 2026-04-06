@@ -88,6 +88,13 @@ export function StockPage() {
     }
   }, [importFilePath, refetch, search, filterStoreId, fetchDbInfo, fetchStores])
 
+  const handleExport = useCallback(async () => {
+    const result = await window.api.exportProducts(filterStoreId)
+    if (result.success) {
+      alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
+    }
+  }, [filterStoreId])
+
   const handleAddStore = useCallback(async () => {
     if (!newStoreName.trim()) return
     await window.api.createStore(newStoreName.trim())
@@ -158,6 +165,12 @@ export function StockPage() {
               + เพิ่มร้านค้า
             </button>
           )}
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+          >
+            ส่งออก Excel
+          </button>
           <button
             onClick={handleImport}
             disabled={importing}

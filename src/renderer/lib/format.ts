@@ -1,6 +1,6 @@
-// Calculate card fee: 5% of total, rounded up to nearest 10
-export function calcCardFee(total: number): number {
-  const raw = total * 0.05
+// Calculate card fee: percentage of total, rounded up to nearest 10
+export function calcCardFee(total: number, percent: number = 5): number {
+  const raw = total * (percent / 100)
   return Math.ceil(raw / 10) * 10
 }
 

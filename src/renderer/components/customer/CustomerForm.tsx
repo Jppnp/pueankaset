@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../shared/Modal'
 import type { Customer } from '../../lib/types'
 
@@ -15,6 +15,9 @@ export function CustomerForm({ open, onClose, customer, onSave }: Props) {
   const [address, setAddress] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
+  const dupTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     if (open) {
@@ -22,15 +25,54 @@ export function CustomerForm({ open, onClose, customer, onSave }: Props) {
       setPhone(customer?.phone ?? '')
       setAddress(customer?.address ?? '')
       setError(null)
+      setFieldErrors({})
+      setDuplicateWarning(null)
       setSaving(false)
     }
   }, [open, customer])
 
+  const checkDuplicate = useCallback(
+    (value: string) => {
+      clearTimeout(dupTimerRef.current)
+      const trimmed = value.trim()
+      if (!trimmed) {
+        setDuplicateWarning(null)
+        return
+      }
+      dupTimerRef.current = setTimeout(async () => {
+        const dup = await window.api.checkDuplicateCustomer(trimmed, customer?.id)
+        setDuplicateWarning(dup ? `มีลูกค้าชื่อ "${dup.name}" อยู่แล้ว` : null)
+      }, 300)
+    },
+    [customer]
+  )
+
+  const handleNameChange = (value: string) => {
+    setName(value)
+    if (!value.trim()) {
+      setFieldErrors((e) => ({ ...e, name: 'กรุณาระบุชื่อลูกค้า' }))
+    } else {
+      setFieldErrors((e) => { const { name: _, ...rest } = e; return rest })
+    }
+    checkDuplicate(value)
+  }
+
+  const handlePhoneChange = (value: string) => {
+    setPhone(value)
+    if (value.trim() && !/^[0-9\-+() ]*$/.test(value.trim())) {
+      setFieldErrors((e) => ({ ...e, phone: 'รูปแบบเบอร์โทรไม่ถูกต้อง' }))
+    } else {
+      setFieldErrors((e) => { const { phone: _, ...rest } = e; return rest })
+    }
+  }
+
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('กรุณาระบุชื่อลูกค้า')
+      setFieldErrors((e) => ({ ...e, name: 'กรุณาระบุชื่อลูกค้า' }))
       return
     }
+    if (Object.keys(fieldErrors).length > 0) return
+
     setSaving(true)
     setError(null)
     try {
@@ -67,19 +109,33 @@ export function CustomerForm({ open, onClose, customer, onSave }: Props) {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            onChange={(e) => handleNameChange(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+              fieldErrors.name ? 'border-red-400' : 'border-gray-300'
+            }`}
             autoFocus
           />
+          {fieldErrors.name && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>
+          )}
+          {duplicateWarning && !fieldErrors.name && (
+            <p className="text-xs text-amber-600 mt-1">{duplicateWarning}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
           <input
             type="text"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            onChange={(e) => handlePhoneChange(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+              fieldErrors.phone ? 'border-red-400' : 'border-gray-300'
+            }`}
+            placeholder="เช่น 081-234-5678"
           />
+          {fieldErrors.phone && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">ที่อยู่</label>
@@ -99,7 +155,7 @@ export function CustomerForm({ open, onClose, customer, onSave }: Props) {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || Object.keys(fieldErrors).length > 0}
             className="flex-[2] px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
           >
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}

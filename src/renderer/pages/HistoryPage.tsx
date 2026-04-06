@@ -19,6 +19,7 @@ export function HistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [stores, setStores] = useState<Store[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined)
+  const [pageSize, setPageSize] = useState(20)
 
   const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
@@ -43,16 +44,23 @@ export function HistoryPage() {
 
   useEffect(() => {
     const range = getDateRange()
-    fetchSales({ page: 1, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
+    fetchSales({ page: 1, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
     fetchProfit(range.from, range.to, selectedStoreId)
-  }, [preset, customFrom, customTo, selectedStoreId, fetchSales, fetchProfit, getDateRange])
+  }, [preset, customFrom, customTo, selectedStoreId, pageSize, fetchSales, fetchProfit, getDateRange])
 
   const handlePageChange = useCallback(
     (page: number) => {
       const range = getDateRange()
-      fetchSales({ page, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
+      fetchSales({ page, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
     },
-    [fetchSales, getDateRange, selectedStoreId]
+    [fetchSales, getDateRange, selectedStoreId, pageSize]
+  )
+
+  const handlePageSizeChange = useCallback(
+    (newSize: number) => {
+      setPageSize(newSize)
+    },
+    []
   )
 
   const handleSelect = useCallback(
@@ -73,15 +81,29 @@ export function HistoryPage() {
     }
   }, [])
 
+  const handleExport = useCallback(
+    async (detailed: boolean) => {
+      const range = getDateRange()
+      const params = { dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId }
+      const result = detailed
+        ? await window.api.exportSalesDetail(params)
+        : await window.api.exportSales(params)
+      if (result.success) {
+        alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
+      }
+    },
+    [getDateRange, selectedStoreId]
+  )
+
   const handleRefundSuccess = useCallback(() => {
     // Re-fetch the detail, sales list, and profit summary
     if (selectedId) {
       handleSelect(selectedId)
     }
     const range = getDateRange()
-    fetchSales({ page: sales.page, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
+    fetchSales({ page: sales.page, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
     fetchProfit(range.from, range.to, selectedStoreId)
-  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, selectedStoreId])
+  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId])
 
   return (
     <div className="flex flex-col h-full">
@@ -89,6 +111,27 @@ export function HistoryPage() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-gray-900">ประวัติการขาย</h1>
           <div className="flex items-center gap-2">
+            <div className="relative group">
+              <button className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
+                ส่งออก Excel
+              </button>
+              <div className="hidden group-hover:block absolute right-0 top-full pt-1 z-10">
+                <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[180px]">
+                  <button
+                    onClick={() => handleExport(false)}
+                    className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-t-lg"
+                  >
+                    สรุปรายการขาย
+                  </button>
+                  <button
+                    onClick={() => handleExport(true)}
+                    className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-b-lg border-t"
+                  >
+                    รายละเอียด (แยกสินค้า)
+                  </button>
+                </div>
+              </div>
+            </div>
             <span className="text-sm text-gray-500">ร้านค้า:</span>
             <select
               value={selectedStoreId ?? ''}
@@ -132,6 +175,7 @@ export function HistoryPage() {
               total={sales.total}
               pageSize={sales.pageSize}
               onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
             />
           </div>
         </div>

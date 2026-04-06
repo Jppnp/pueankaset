@@ -14,6 +14,17 @@ export function registerCustomerHandlers(): void {
     return db.prepare('SELECT * FROM customers ORDER BY name ASC').all()
   })
 
+  // Check duplicate customer name
+  ipcMain.handle('customers:check-duplicate', (_event, name: string, excludeId?: number) => {
+    const db = getDb()
+    const trimmed = name?.trim()
+    if (!trimmed) return null
+    if (excludeId) {
+      return db.prepare('SELECT id, name FROM customers WHERE name = ? AND id != ?').get(trimmed, excludeId) ?? null
+    }
+    return db.prepare('SELECT id, name FROM customers WHERE name = ?').get(trimmed) ?? null
+  })
+
   // Get single customer
   ipcMain.handle('customers:get', (_event, id: number) => {
     const db = getDb()

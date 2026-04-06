@@ -102,6 +102,16 @@ export function registerProductHandlers(): void {
     }
   )
 
+  ipcMain.handle('products:check-duplicate', (_event, name: string, excludeId?: number) => {
+    const db = getDb()
+    const trimmed = name?.trim()
+    if (!trimmed) return null
+    if (excludeId) {
+      return db.prepare('SELECT id, name FROM products WHERE name = ? AND id != ?').get(trimmed, excludeId) ?? null
+    }
+    return db.prepare('SELECT id, name FROM products WHERE name = ?').get(trimmed) ?? null
+  })
+
   ipcMain.handle('products:search', (_event, query: string) => {
     const db = getDb()
     if (!query.trim()) return []

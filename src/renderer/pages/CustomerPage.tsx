@@ -25,6 +25,13 @@ export function CustomerPage() {
     handleRefresh()
   }
 
+  const handleExport = useCallback(async () => {
+    const result = await window.api.exportCustomers()
+    if (result.success) {
+      alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
+    }
+  }, [])
+
   const handleDelete = useCallback(async () => {
     if (!selectedId) return
     const confirmed = confirm('ต้องการลบลูกค้านี้หรือไม่?')
@@ -45,12 +52,20 @@ export function CustomerPage() {
       <div className="px-6 py-4 border-b bg-white">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-gray-900">ลูกค้า</h1>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            + เพิ่มลูกค้า
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              ส่งออก Excel
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              + เพิ่มลูกค้า
+            </button>
+          </div>
         </div>
         <input
           type="text"

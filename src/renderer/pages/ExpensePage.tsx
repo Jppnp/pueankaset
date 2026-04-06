@@ -9,6 +9,7 @@ import type { Expense, ExpenseSummary, PaginatedResult } from '../lib/types'
 
 export function ExpensePage() {
   const { role } = useRole()
+  const [pageSize, setPageSize] = useState(20)
   const [expenses, setExpenses] = useState<PaginatedResult<Expense>>({
     data: [], total: 0, page: 1, pageSize: 20
   })
@@ -33,7 +34,7 @@ export function ExpensePage() {
       const from = `${dateFrom} 00:00:00`
       const to = `${dateTo} 23:59:59`
       const [expenseData, summaryData] = await Promise.all([
-        window.api.getExpenses({ page, pageSize: 20, dateFrom: from, dateTo: to }),
+        window.api.getExpenses({ page, pageSize, dateFrom: from, dateTo: to }),
         window.api.getExpenseSummary(from, to)
       ])
       setExpenses(expenseData)
@@ -41,7 +42,7 @@ export function ExpensePage() {
     } finally {
       setLoading(false)
     }
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, pageSize])
 
   useEffect(() => {
     fetchData()
@@ -66,18 +67,35 @@ export function ExpensePage() {
     fetchData(expenses.page)
   }
 
+  const handleExport = useCallback(async () => {
+    const from = `${dateFrom} 00:00:00`
+    const to = `${dateTo} 23:59:59`
+    const result = await window.api.exportExpenses({ dateFrom: from, dateTo: to })
+    if (result.success) {
+      alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
+    }
+  }, [dateFrom, dateTo])
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b bg-white">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-gray-900">ค่าใช้จ่าย</h1>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            + เพิ่มค่าใช้จ่าย
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              ส่งออก Excel
+            </button>
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              + เพิ่มค่าใช้จ่าย
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <label className="text-sm text-gray-500">ตั้งแต่:</label>
@@ -118,6 +136,7 @@ export function ExpensePage() {
               total={expenses.total}
               pageSize={expenses.pageSize}
               onPageChange={(p) => fetchData(p)}
+              onPageSizeChange={(s) => setPageSize(s)}
             />
           </div>
         </div>
