@@ -136,7 +136,20 @@ const api = {
   backupExport: () => ipcRenderer.invoke('backup:export'),
   backupRestore: () => ipcRenderer.invoke('backup:restore'),
   backupList: () => ipcRenderer.invoke('backup:list'),
-  backupInfo: () => ipcRenderer.invoke('backup:info')
+  backupInfo: () => ipcRenderer.invoke('backup:info'),
+
+  // App updates
+  getUpdateStatus: () => ipcRenderer.invoke('app-update:get-status'),
+  checkForUpdates: () => ipcRenderer.invoke('app-update:check'),
+  installUpdate: () => ipcRenderer.invoke('app-update:install'),
+  onUpdateStatus: (callback: (status: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: unknown) => {
+      callback(status)
+    }
+
+    ipcRenderer.on('app-update:status', listener)
+    return () => ipcRenderer.removeListener('app-update:status', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

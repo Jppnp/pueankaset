@@ -4,6 +4,7 @@ import { RoleProvider, useRole } from './contexts/RoleContext'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { Sidebar } from './components/layout/Sidebar'
+import { UpdateNotification } from './components/layout/UpdateNotification'
 import { SalePage } from './pages/SalePage'
 import { StockPage } from './pages/StockPage'
 import { HistoryPage } from './pages/HistoryPage'
@@ -60,6 +61,7 @@ export function App() {
         <HashRouter>
           <AppRoutes />
         </HashRouter>
+        <UpdateNotification />
       </RoleProvider>
     </ErrorBoundary>
   )

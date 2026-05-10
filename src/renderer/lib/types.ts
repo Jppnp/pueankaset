@@ -2,6 +2,29 @@ export type Role = 'owner' | 'employee'
 export type PaymentType = 'cash' | 'card' | 'credit'
 export type PrinterMode = 'mock' | 'system' | 'network' | 'device'
 export type PrinterTextEncoding = 'tis620' | 'utf8'
+export type UpdateStage =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'downloaded'
+  | 'installing'
+  | 'not-available'
+  | 'error'
+
+export interface AppUpdateStatus {
+  stage: UpdateStage
+  supported: boolean
+  currentVersion: string
+  version?: string
+  percent?: number
+  transferred?: number
+  total?: number
+  bytesPerSecond?: number
+  message?: string
+  startedByUser?: boolean
+  updatedAt: string
+}
 
 export interface PrinterConfig {
   mode: PrinterMode
@@ -418,6 +441,12 @@ export interface ElectronAPI {
   }>
   backupList: () => Promise<BackupFile[]>
   backupInfo: () => Promise<BackupInfo>
+
+  // App updates
+  getUpdateStatus: () => Promise<AppUpdateStatus>
+  checkForUpdates: () => Promise<AppUpdateStatus>
+  installUpdate: () => Promise<{ success: boolean; error?: string }>
+  onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => () => void
 }
 
 declare global {

@@ -1,6 +1,5 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
-import { autoUpdater } from 'electron-updater'
 import { initDatabase, closeDatabase } from './database'
 import { registerProductHandlers } from './ipc/products'
 import { registerSaleHandlers } from './ipc/sales'
@@ -18,6 +17,7 @@ import { registerExpenseHandlers } from './ipc/expenses'
 import { registerBackupHandlers, runAutoBackup } from './ipc/backup'
 import { registerSettingsHandlers } from './ipc/settings'
 import { registerExportHandlers } from './ipc/export'
+import { registerUpdaterHandlers, startAutoUpdater } from './ipc/updater'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -70,21 +70,15 @@ app.whenReady().then(() => {
   registerBackupHandlers()
   registerSettingsHandlers()
   registerExportHandlers()
+  registerUpdaterHandlers()
 
   // Auto-backup database on every app start
   runAutoBackup()
 
   createWindow()
 
-  // Auto-update: check on startup, silent if offline
-  if (app.isPackaged) {
-    autoUpdater.logger = console
-    autoUpdater.autoDownload = true
-    autoUpdater.autoInstallOnAppQuit = true
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {
-      // Silent fail — offline or no release yet
-    })
-  }
+  // Auto-update: check on startup and stream status to the renderer.
+  startAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

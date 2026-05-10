@@ -29,6 +29,10 @@ export function Sidebar() {
     navigate('/')
   }
 
+  const handleCheckForUpdates = () => {
+    void window.api.checkForUpdates()
+  }
+
   return (
     <aside className="w-56 bg-green-800 text-white flex flex-col h-screen shrink-0">
       <div className="px-4 py-5 border-b border-green-700">
@@ -87,7 +91,16 @@ export function Sidebar() {
             </button>
           </div>
         )}
-        <div className="text-xs text-green-400">เวอร์ชัน {__APP_VERSION__}</div>
+        <div className="flex items-center justify-between gap-2 text-xs text-green-400">
+          <span>เวอร์ชัน {__APP_VERSION__}</span>
+          <button
+            type="button"
+            onClick={handleCheckForUpdates}
+            className="text-green-300 transition-colors hover:text-white"
+          >
+            ตรวจอัปเดต
+          </button>
+        </div>
       </div>
       <ChangePasswordDialog
         open={showChangePassword}
