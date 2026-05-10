@@ -1,5 +1,28 @@
 export type Role = 'owner' | 'employee'
 export type PaymentType = 'cash' | 'card' | 'credit'
+export type PrinterMode = 'mock' | 'system' | 'network' | 'device'
+export type PrinterTextEncoding = 'tis620' | 'utf8'
+
+export interface PrinterConfig {
+  mode: PrinterMode
+  printerName: string
+  host: string
+  port: number
+  devicePath: string
+  paperWidthMm: 58 | 80
+  charactersPerLine: number
+  encoding: PrinterTextEncoding
+  codePage: number
+  cutPaper: boolean
+}
+
+export interface PrinterDevice {
+  name: string
+  displayName: string
+  description?: string
+  status?: number
+  isDefault?: boolean
+}
 
 export interface Store {
   id: number
@@ -355,6 +378,12 @@ export interface ElectronAPI {
 
   // Printer
   printReceipt: (saleId: number) => Promise<{ success: boolean; error?: string }>
+  getPrinterConfig: () => Promise<PrinterConfig>
+  savePrinterConfig: (
+    config: PrinterConfig
+  ) => Promise<{ success: boolean; config?: PrinterConfig; error?: string }>
+  listPrinters: () => Promise<PrinterDevice[]>
+  testPrinter: (config?: PrinterConfig) => Promise<{ success: boolean; error?: string }>
 
   // Import
   importFromStore: (filePath: string, storeId: number) => Promise<{ imported: number }>

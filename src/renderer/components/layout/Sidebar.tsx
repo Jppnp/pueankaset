@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useRole } from '../../contexts/RoleContext'
 import { ChangePasswordDialog } from '../auth/ChangePasswordDialog'
 import { BackupDialog } from '../backup/BackupDialog'
+import { PrinterSettingsDialog } from '../printer/PrinterSettingsDialog'
 
 const allNavItems = [
   { path: '/', label: 'ขายสินค้า', icon: '🛒', ownerOnly: false },
@@ -19,6 +20,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [showBackup, setShowBackup] = useState(false)
+  const [showPrinterSettings, setShowPrinterSettings] = useState(false)
 
   const navItems = useMemo(() => allNavItems.filter((item) => !item.ownerOnly || isOwner), [isOwner])
 
@@ -77,6 +79,12 @@ export function Sidebar() {
             >
               สำรองข้อมูล
             </button>
+            <button
+              onClick={() => setShowPrinterSettings(true)}
+              className="text-xs text-green-400 hover:text-white transition-colors text-left"
+            >
+              ตั้งค่าเครื่องพิมพ์
+            </button>
           </div>
         )}
         <div className="text-xs text-green-400">เวอร์ชัน {__APP_VERSION__}</div>
@@ -86,6 +94,10 @@ export function Sidebar() {
         onClose={() => setShowChangePassword(false)}
       />
       <BackupDialog open={showBackup} onClose={() => setShowBackup(false)} />
+      <PrinterSettingsDialog
+        open={showPrinterSettings}
+        onClose={() => setShowPrinterSettings(false)}
+      />
     </aside>
   )
 }

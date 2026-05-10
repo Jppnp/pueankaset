@@ -81,7 +81,10 @@ export function SalePage() {
         setSelectedCustomer(null)
 
         if (options.print) {
-          await window.api.printReceipt(result.saleId)
+          const printResult = await window.api.printReceipt(result.saleId)
+          if (!printResult.success) {
+            alert(`พิมพ์ไม่สำเร็จ: ${printResult.error}`)
+          }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'

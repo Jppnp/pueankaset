@@ -38,6 +38,11 @@ const api = {
 
   // Printer
   printReceipt: (saleId: number) => ipcRenderer.invoke('printer:print', saleId),
+  getPrinterConfig: () => ipcRenderer.invoke('printer:get-config'),
+  savePrinterConfig: (config: Record<string, unknown>) =>
+    ipcRenderer.invoke('printer:save-config', config),
+  listPrinters: () => ipcRenderer.invoke('printer:list'),
+  testPrinter: (config?: Record<string, unknown>) => ipcRenderer.invoke('printer:test', config),
 
   // Import
   importFromStore: (filePath: string, storeId: number) =>
