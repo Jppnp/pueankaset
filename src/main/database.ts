@@ -25,7 +25,11 @@ export function initDatabase(): void {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
 
-  runMigrations()
+  runMigrations(db)
+}
+
+export function initializeDatabaseSchema(targetDb: Database.Database): void {
+  runMigrations(targetDb)
 }
 
 // Migrations inlined for reliable bundling with electron-vite
@@ -216,19 +220,23 @@ CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
   }
 ]
 
-function runMigrations(): void {
-  db.exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`)
+function runMigrations(targetDb: Database.Database): void {
+  targetDb.exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`)
 
   const currentVersion =
-    (db.prepare('SELECT MAX(version) as v FROM schema_version').get() as { v: number | null })
+    (
+      targetDb.prepare('SELECT MAX(version) as v FROM schema_version').get() as {
+        v: number | null
+      }
+    )
       ?.v ?? 0
 
   for (const migration of migrations) {
     if (migration.version <= currentVersion) continue
 
-    const migrate = db.transaction(() => {
-      db.exec(migration.sql)
-      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
+    const migrate = targetDb.transaction(() => {
+      targetDb.exec(migration.sql)
+      targetDb.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
     })
 
     migrate()

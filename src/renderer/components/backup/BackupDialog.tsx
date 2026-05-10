@@ -74,7 +74,9 @@ export function BackupDialog({ open, onClose }: BackupDialogProps) {
       if (result.success && result.needsRestart) {
         setMessage({
           type: 'success',
-          text: 'กู้คืนข้อมูลสำเร็จ กรุณาปิดและเปิดแอปใหม่'
+          text: result.convertedLegacy
+            ? 'แปลงและกู้คืนข้อมูลรุ่นเก่าสำเร็จ กรุณาปิดและเปิดแอปใหม่'
+            : 'กู้คืนข้อมูลสำเร็จ กรุณาปิดและเปิดแอปใหม่'
         })
       } else if (result.error !== 'ยกเลิก') {
         setMessage({ type: 'error', text: result.error || 'เกิดข้อผิดพลาด' })
@@ -137,6 +139,9 @@ export function BackupDialog({ open, onClose }: BackupDialogProps) {
             {loading ? 'กำลังดำเนินการ...' : 'กู้คืนข้อมูล'}
           </button>
         </div>
+        <p className="text-xs text-gray-500">
+          รองรับไฟล์สำรองรุ่นเก่า ระบบจะแปลงข้อมูลสินค้าและประวัติขายให้อัตโนมัติก่อนกู้คืน
+        </p>
 
         {/* Auto backup history */}
         {backups.length > 0 && (

@@ -410,7 +410,12 @@ export interface ElectronAPI {
 
   // Backup
   backupExport: () => Promise<{ success: boolean; path?: string; error?: string }>
-  backupRestore: () => Promise<{ success: boolean; needsRestart?: boolean; error?: string }>
+  backupRestore: () => Promise<{
+    success: boolean
+    needsRestart?: boolean
+    convertedLegacy?: boolean
+    error?: string
+  }>
   backupList: () => Promise<BackupFile[]>
   backupInfo: () => Promise<BackupInfo>
 }
