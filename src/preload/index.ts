@@ -135,6 +135,7 @@ const api = {
   // Backup
   backupExport: () => ipcRenderer.invoke('backup:export'),
   backupRestore: () => ipcRenderer.invoke('backup:restore'),
+  backupFixLegacyDates: () => ipcRenderer.invoke('backup:fix-legacy-import-dates'),
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupInfo: () => ipcRenderer.invoke('backup:info'),
 

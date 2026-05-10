@@ -439,6 +439,12 @@ export interface ElectronAPI {
     convertedLegacy?: boolean
     error?: string
   }>
+  backupFixLegacyDates: () => Promise<{
+    success: boolean
+    updated?: number
+    total?: number
+    error?: string
+  }>
   backupList: () => Promise<BackupFile[]>
   backupInfo: () => Promise<BackupInfo>
 

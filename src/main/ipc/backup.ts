@@ -136,12 +136,12 @@ function toSqliteDateTime(value: string): string {
     return value.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '')
   }
 
-  const year = parsed.getFullYear()
-  const month = (parsed.getMonth() + 1).toString().padStart(2, '0')
-  const day = parsed.getDate().toString().padStart(2, '0')
-  const hours = parsed.getHours().toString().padStart(2, '0')
-  const minutes = parsed.getMinutes().toString().padStart(2, '0')
-  const seconds = parsed.getSeconds().toString().padStart(2, '0')
+  const year = parsed.getUTCFullYear()
+  const month = (parsed.getUTCMonth() + 1).toString().padStart(2, '0')
+  const day = parsed.getUTCDate().toString().padStart(2, '0')
+  const hours = parsed.getUTCHours().toString().padStart(2, '0')
+  const minutes = parsed.getUTCMinutes().toString().padStart(2, '0')
+  const seconds = parsed.getUTCSeconds().toString().padStart(2, '0')
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
@@ -361,6 +361,65 @@ export function registerBackupHandlers(): void {
       if (tempDir) {
         fs.rmSync(tempDir, { recursive: true, force: true })
       }
+    }
+  })
+
+  // Fix dates that were corrupted by the v1.10.6 legacy-restore bug
+  // (UTC ISO timestamps were converted to local-time strings)
+  ipcMain.handle('backup:fix-legacy-import-dates', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return { success: false, error: 'ไม่พบหน้าต่างหลัก' }
+
+    const result = await dialog.showOpenDialog(win, {
+      title: 'เลือกไฟล์สำรองรุ่นเก่าเพื่อซ่อมเวลา',
+      filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }],
+      properties: ['openFile']
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: 'ยกเลิก' }
+    }
+
+    const sourcePath = result.filePaths[0]
+
+    try {
+      const inspection = inspectBackupDatabase(sourcePath)
+      if (inspection.kind !== 'legacy') {
+        return { success: false, error: 'ไฟล์นี้ไม่ใช่ไฟล์สำรองรุ่นเก่า' }
+      }
+
+      const backupDir = getDefaultBackupDir()
+      ensureDir(backupDir)
+      const preFixBackup = path.join(backupDir, generateBackupFilename('pre-fix-dates'))
+      const db = getDb()
+      db.backup(preFixBackup)
+
+      const legacyDb = new Database(sourcePath, { readonly: true })
+      let rows: { id: number; date: string }[]
+      try {
+        rows = legacyDb.prepare('SELECT id, date FROM sales').all() as {
+          id: number
+          date: string
+        }[]
+      } finally {
+        legacyDb.close()
+      }
+
+      const update = db.prepare('UPDATE sales SET date = ? WHERE id = ? AND date != ?')
+
+      let updated = 0
+      const fix = db.transaction(() => {
+        for (const row of rows) {
+          const correctDate = toSqliteDateTime(row.date)
+          const res = update.run(correctDate, row.id, correctDate)
+          if (res.changes > 0) updated++
+        }
+      })
+      fix()
+
+      return { success: true, updated, total: rows.length }
+    } catch (err) {
+      return { success: false, error: `ซ่อมเวลาไม่สำเร็จ: ${(err as Error).message}` }
     }
   })
 

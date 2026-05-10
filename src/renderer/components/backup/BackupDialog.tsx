@@ -58,6 +58,36 @@ export function BackupDialog({ open, onClose }: BackupDialogProps) {
     }
   }
 
+  const handleFixLegacyDates = async () => {
+    const confirmed = window.confirm(
+      'ใช้สำหรับซ่อมเวลาขายที่นำเข้าจากไฟล์สำรองรุ่นเก่า\n\n' +
+        'กรุณาเลือกไฟล์สำรองรุ่นเก่าตัวเดิมที่ใช้กู้คืน\n' +
+        'ระบบจะอ่านเวลาที่ถูกต้องจากไฟล์นั้นแล้วอัปเดตข้อมูลปัจจุบัน\n\n' +
+        'รายการขายที่สร้างใหม่หลังกู้คืนจะไม่ถูกแตะต้อง\n' +
+        'ระบบจะสำรองข้อมูลปัจจุบันไว้ก่อนแก้ไข\n\n' +
+        'ต้องการดำเนินการต่อหรือไม่?'
+    )
+    if (!confirmed) return
+
+    setLoading(true)
+    setMessage(null)
+    try {
+      const result = await window.api.backupFixLegacyDates()
+      if (result.success) {
+        setMessage({
+          type: 'success',
+          text: `ซ่อมเวลาสำเร็จ: อัปเดต ${result.updated ?? 0} รายการ จากทั้งหมด ${result.total ?? 0} รายการในไฟล์`
+        })
+      } else if (result.error !== 'ยกเลิก') {
+        setMessage({ type: 'error', text: result.error || 'เกิดข้อผิดพลาด' })
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการซ่อมเวลา' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleRestore = async () => {
     const confirmed = window.confirm(
       'คำเตือน: การกู้คืนข้อมูลจะแทนที่ข้อมูลปัจจุบันทั้งหมด\n\n' +
@@ -142,6 +172,20 @@ export function BackupDialog({ open, onClose }: BackupDialogProps) {
         <p className="text-xs text-gray-500">
           รองรับไฟล์สำรองรุ่นเก่า ระบบจะแปลงข้อมูลสินค้าและประวัติขายให้อัตโนมัติก่อนกู้คืน
         </p>
+
+        {/* Legacy date fix - for users who restored before v1.10.7 */}
+        <div className="border-t pt-4">
+          <button
+            onClick={handleFixLegacyDates}
+            disabled={loading}
+            className="w-full bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors text-sm font-medium"
+          >
+            ซ่อมเวลาขายที่นำเข้าจากไฟล์รุ่นเก่า
+          </button>
+          <p className="text-xs text-gray-500 mt-2">
+            ใช้กรณีที่เคยกู้คืนไฟล์รุ่นเก่าก่อนเวอร์ชัน 1.10.7 และพบว่าเวลาขายเลื่อน 7 ชั่วโมง
+          </p>
+        </div>
 
         {/* Auto backup history */}
         {backups.length > 0 && (
