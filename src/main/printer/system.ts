@@ -31,12 +31,15 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
       })()`
     )
 
+    // printToPDF's pageSize is in INCHES (Puppeteer-compatible API since
+    // Electron 21), unlike webContents.print which uses microns. Mixing them
+    // up produces a ~2km-square page with content rendered as a tiny dot.
     const pdf = await window.webContents.printToPDF({
       printBackground: true,
       margins: { marginType: 'none' },
       pageSize: {
-        width: getPaperWidthMicrons(config),
-        height: getReceiptHeightMicrons(lines.length)
+        width: config.paperWidthMm / 25.4,
+        height: getReceiptHeightMicrons(lines.length) / 25400
       }
     })
 
@@ -124,11 +127,27 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     }
     .center { text-align: center; }
     .bold { font-weight: 700; }
-    .total { font-size: ${fontSize + 2}px; }
+    .total {
+      font-size: ${fontSize + 8}px;
+      margin: 1mm 0;
+    }
     .separator {
       font-family: "Courier New", monospace;
       white-space: pre;
       overflow: hidden;
+    }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 4mm;
+    }
+    .item-row .right {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .description {
+      color: #666;
+      padding-left: 3mm;
     }
   </style>
 </head>
@@ -151,17 +170,33 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   if (line.type === 'total') {
     classes.push('total')
   }
+  if (line.type === 'description') {
+    classes.push('description')
+  }
   if (line.type === 'separator') {
     const char = line.content.includes('=') ? '=' : '-'
     content = char.repeat(config.charactersPerLine)
     classes.push('separator')
+  }
+  if (line.type === 'item-row') {
+    classes.push('item-row')
+    const right = line.rightContent ?? ''
+    const eqIdx = right.lastIndexOf('= ')
+    const rightHtml =
+      eqIdx >= 0
+        ? `${escapeHtml(right.slice(0, eqIdx + 2))}<strong>${escapeHtml(right.slice(eqIdx + 2))}</strong>`
+        : escapeHtml(right)
+    return `<div class="${classes.join(' ')}"><span class="left">${escapeHtml(content)}</span><span class="right">${rightHtml}</span></div>`
   }
 
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
 }
 
 function getReceiptHeightMicrons(lineCount: number): number {
-  return Math.max(80000, 30000 + lineCount * 5500)
+  // 8mm padding (CSS) + 5mm slack for the enlarged total line +
+  // ~5.5mm per line at 12px/1.35 line-height. Keeping this tight
+  // prevents thermal printers from feeding excess blank paper.
+  return 13000 + lineCount * 5500
 }
 
 function escapeHtml(value: string): string {

@@ -92,18 +92,27 @@ export function registerPrinterHandlers(): void {
 
       const items = db
         .prepare(
-          `SELECT si.*, p.name as product_name
+          `SELECT si.*, p.name as product_name, p.description as product_description
            FROM sale_items si
            JOIN products p ON p.id = si.product_id
            WHERE si.sale_id = ?`
         )
         .all(saleId) as {
         product_name: string
+        product_description: string | null
         quantity: number
         price: number
       }[]
 
-      const receipt = buildReceipt(sale, items)
+      const receipt = buildReceipt(
+        sale,
+        items.map((i) => ({
+          product_name: i.product_name,
+          description: i.product_description,
+          quantity: i.quantity,
+          price: i.price
+        }))
+      )
       const config = getPrinterConfig(db, getDefaultPrinterMode())
       validatePrinterConfig(config)
 

@@ -1,6 +1,7 @@
 export interface ReceiptLine {
-  type: 'header' | 'text' | 'item' | 'separator' | 'total' | 'footer'
+  type: 'header' | 'text' | 'item' | 'item-row' | 'description' | 'separator' | 'total' | 'footer'
   content: string
+  rightContent?: string
   bold?: boolean
 }
 
@@ -13,15 +14,20 @@ export function buildReceipt(
     customer_name?: string
     payment_type?: string
   },
-  items: { product_name: string; quantity: number; price: number }[]
+  items: {
+    product_name: string
+    description?: string | null
+    quantity: number
+    price: number
+  }[]
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
 
   lines.push({ type: 'header', content: 'เพื่อนเกษตร', bold: true })
-  lines.push({ type: 'text', content: '0857331118' })
+  lines.push({ type: 'header', content: '0857331118' })
   lines.push({ type: 'separator', content: '================================' })
   lines.push({ type: 'text', content: `ใบเสร็จ #${sale.id}` })
-  lines.push({ type: 'text', content: `วันที่: ${formatThaiDate(sale.date)}` })
+  lines.push({ type: 'text', content: `วันที่: ${formatThaiDateTime(sale.date)}` })
   if (sale.customer_name) {
     lines.push({ type: 'text', content: `ลูกค้า: ${sale.customer_name}` })
   }
@@ -30,13 +36,14 @@ export function buildReceipt(
   for (const item of items) {
     const lineTotal = item.price * item.quantity
     lines.push({
-      type: 'item',
-      content: `${item.product_name}`
+      type: 'item-row',
+      content: item.product_name,
+      rightContent: `${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`
     })
-    lines.push({
-      type: 'item',
-      content: `  ${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`
-    })
+    const description = item.description?.trim()
+    if (description) {
+      lines.push({ type: 'description', content: description })
+    }
   }
 
   lines.push({ type: 'separator', content: '================================' })
@@ -75,10 +82,17 @@ function formatBaht(amount: number): string {
   return `฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function formatThaiDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  const buddhistYear = date.getFullYear() + 543
-  const day = date.getDate().toString().padStart(2, '0')
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  return `${day}/${month}/${buddhistYear}`
+function formatThaiDateTime(dateStr: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date(dateStr))
+  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? ''
+  const buddhistYear = Number(get('year')) + 543
+  return `${get('day')}/${get('month')}/${buddhistYear} ${get('hour')}:${get('minute')}`
 }

@@ -56,7 +56,19 @@ function formatContent(line: ReceiptLine, width: number): string {
     return center(line.content, width)
   }
 
+  if (line.type === 'item-row') {
+    return justify(line.content, line.rightContent ?? '', width)
+  }
+
   return line.content
+}
+
+function justify(left: string, right: string, width: number): string {
+  if (left.length + right.length + 1 > width) {
+    return `${left}\n${' '.repeat(Math.max(0, width - right.length))}${right}`
+  }
+  const gap = width - left.length - right.length
+  return `${left}${' '.repeat(gap)}${right}`
 }
 
 function center(text: string, width: number): string {
