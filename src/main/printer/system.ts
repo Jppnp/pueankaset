@@ -16,6 +16,15 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
     const html = buildReceiptHtml(lines, config)
     await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
 
+    // did-finish-load fires before paint completes; without this wait silent
+    // print can fire mid-render and emit blank pages. See electron/electron#39179.
+    await window.webContents.executeJavaScript(
+      `(async () => {
+        if (document.fonts && document.fonts.ready) { await document.fonts.ready }
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      })()`
+    )
+
     await new Promise<void>((resolve, reject) => {
       window.webContents.print(
         {
@@ -23,6 +32,10 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
           printBackground: true,
           deviceName: config.printerName || undefined,
           margins: { marginType: 'none' },
+          // Without an explicit dpi, silent print on Electron 25+ outputs
+          // blank/shrunken pages on many printers. 203 dpi is the standard
+          // for thermal POS printers (8 dots/mm). See electron/electron#39179.
+          dpi: { horizontal: 203, vertical: 203 },
           pageSize: {
             width: getPaperWidthMicrons(config),
             height: getReceiptHeightMicrons(lines.length)
