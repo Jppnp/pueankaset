@@ -32,6 +32,13 @@ export function CustomerPage() {
     }
   }, [])
 
+  const handlePrintDebt = useCallback(async (customerId: number) => {
+    const result = await window.api.printDebtReceipt(customerId)
+    if (!result.success) {
+      alert(result.error || 'พิมพ์ใบสรุปยอดค้างชำระไม่สำเร็จ')
+    }
+  }, [])
+
   const handleDelete = useCallback(async () => {
     if (!selectedId) return
     const confirmed = confirm('ต้องการลบลูกค้านี้หรือไม่?')
@@ -87,6 +94,7 @@ export function CustomerPage() {
                 customers={customers}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                onPrintDebt={handlePrintDebt}
               />
             )}
           </div>

@@ -401,6 +401,7 @@ export interface ElectronAPI {
 
   // Printer
   printReceipt: (saleId: number) => Promise<{ success: boolean; error?: string }>
+  printDebtReceipt: (customerId: number) => Promise<{ success: boolean; error?: string }>
   getPrinterConfig: () => Promise<PrinterConfig>
   savePrinterConfig: (
     config: PrinterConfig

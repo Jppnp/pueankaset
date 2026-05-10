@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain, app } from 'electron'
 import { getDb } from '../database'
-import { buildReceipt } from '../printer/receipt'
+import { buildReceipt, buildDebtReceipt } from '../printer/receipt'
 import { printMock } from '../printer/mock'
 import { printEscPos } from '../printer/escpos'
 import { printSystemReceipt } from '../printer/system'
@@ -61,6 +61,107 @@ export function registerPrinterHandlers(): void {
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ทดสอบพิมพ์ไม่สำเร็จ'
+      return { success: false, error: message }
+    }
+  })
+
+  ipcMain.handle('printer:print-debt', async (_event, customerId: number) => {
+    try {
+      const db = getDb()
+
+      const customer = db
+        .prepare('SELECT id, name, phone FROM customers WHERE id = ?')
+        .get(customerId) as { id: number; name: string; phone: string | null } | undefined
+
+      if (!customer) {
+        return { success: false, error: 'ไม่พบลูกค้า' }
+      }
+
+      const creditSales = db
+        .prepare(
+          `SELECT id, date, total_amount FROM sales
+           WHERE customer_id = ? AND payment_type = 'credit'
+           ORDER BY date ASC, id ASC`
+        )
+        .all(customerId) as { id: number; date: string; total_amount: number }[]
+
+      const payments = db
+        .prepare(
+          'SELECT date, amount, note FROM customer_payments WHERE customer_id = ? ORDER BY date ASC, id ASC'
+        )
+        .all(customerId) as { date: string; amount: number; note: string | null }[]
+
+      const getItems = db.prepare(
+        `SELECT si.quantity, si.price, p.name as product_name, p.description as product_description
+         FROM sale_items si
+         JOIN products p ON p.id = si.product_id
+         WHERE si.sale_id = ?`
+      )
+
+      // FIFO: each payment fills the oldest unpaid sale first; overflow rolls forward.
+      const allocated = creditSales.map((sale) => ({
+        ...sale,
+        remaining: sale.total_amount,
+        appliedPayments: [] as { date: string; amount: number; note: string | null }[]
+      }))
+
+      let saleIdx = 0
+      for (const payment of payments) {
+        let amountLeft = payment.amount
+        while (amountLeft > 0 && saleIdx < allocated.length) {
+          const sale = allocated[saleIdx]
+          if (sale.remaining <= 0) {
+            saleIdx++
+            continue
+          }
+          const apply = Math.min(amountLeft, sale.remaining)
+          sale.appliedPayments.push({ date: payment.date, amount: apply, note: payment.note })
+          sale.remaining -= apply
+          amountLeft -= apply
+          if (sale.remaining <= 0) {
+            saleIdx++
+          }
+        }
+        // Any leftover payment (overpayment) is silently absorbed; it still
+        // counts toward the global outstanding via the totals below.
+      }
+
+      const remainingSales = allocated
+        .filter((s) => s.remaining > 0.0001)
+        .map((s) => ({
+          id: s.id,
+          date: s.date,
+          total_amount: s.total_amount,
+          remaining: s.remaining,
+          appliedPayments: s.appliedPayments,
+          items: (
+            getItems.all(s.id) as {
+              product_name: string
+              product_description: string | null
+              quantity: number
+              price: number
+            }[]
+          ).map((it) => ({
+            product_name: it.product_name,
+            description: it.product_description,
+            quantity: it.quantity,
+            price: it.price
+          }))
+        }))
+
+      const totalCredit = creditSales.reduce((sum, s) => sum + s.total_amount, 0)
+      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+      const outstanding = Math.max(0, totalCredit - totalPaid)
+
+      const receipt = buildDebtReceipt(customer, remainingSales, outstanding)
+      const config = getPrinterConfig(db, getDefaultPrinterMode())
+      validatePrinterConfig(config)
+
+      await printReceiptLines(receipt, config)
+
+      return { success: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการพิมพ์'
       return { success: false, error: message }
     }
   })

@@ -38,6 +38,7 @@ const api = {
 
   // Printer
   printReceipt: (saleId: number) => ipcRenderer.invoke('printer:print', saleId),
+  printDebtReceipt: (customerId: number) => ipcRenderer.invoke('printer:print-debt', customerId),
   getPrinterConfig: () => ipcRenderer.invoke('printer:get-config'),
   savePrinterConfig: (config: Record<string, unknown>) =>
     ipcRenderer.invoke('printer:save-config', config),
