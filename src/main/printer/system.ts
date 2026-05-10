@@ -1,4 +1,8 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
+import { mkdir, writeFile, copyFile, unlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { print as pdfPrint } from 'pdf-to-printer'
 import type { ReceiptLine } from './receipt'
 import type { PrinterConfig } from './config'
 import { getPaperWidthMicrons } from './config'
@@ -12,12 +16,14 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
     }
   })
 
+  let pdfPath: string | null = null
+
   try {
     const html = buildReceiptHtml(lines, config)
     await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
 
-    // did-finish-load fires before paint completes; without this wait silent
-    // print can fire mid-render and emit blank pages. See electron/electron#39179.
+    // did-finish-load fires before paint completes; without this wait the PDF
+    // surface can be captured mid-render and emit blank pages.
     await window.webContents.executeJavaScript(
       `(async () => {
         if (document.fonts && document.fonts.ready) { await document.fonts.ready }
@@ -25,32 +31,65 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
       })()`
     )
 
-    await new Promise<void>((resolve, reject) => {
-      window.webContents.print(
-        {
-          silent: true,
-          printBackground: true,
-          deviceName: config.printerName || undefined,
-          margins: { marginType: 'none' },
-          // Without an explicit dpi, silent print on Electron 25+ outputs
-          // blank/shrunken pages on many printers. 203 dpi is the standard
-          // for thermal POS printers (8 dots/mm). See electron/electron#39179.
-          dpi: { horizontal: 203, vertical: 203 },
-          pageSize: {
-            width: getPaperWidthMicrons(config),
-            height: getReceiptHeightMicrons(lines.length)
-          }
-        },
-        (success, failureReason) => {
-          if (success) {
-            resolve()
-          } else {
-            reject(new Error(failureReason || 'เครื่องพิมพ์ไม่ตอบสนอง'))
-          }
-        }
-      )
+    const pdf = await window.webContents.printToPDF({
+      printBackground: true,
+      margins: { marginType: 'none' },
+      pageSize: {
+        width: getPaperWidthMicrons(config),
+        height: getReceiptHeightMicrons(lines.length)
+      }
     })
+
+    pdfPath = join(tmpdir(), `pueankaset-receipt-${Date.now()}.pdf`)
+    await writeFile(pdfPath, pdf)
+
+    // Mirror the latest PDF into userData/printer-debug so the client can
+    // share it for diagnosis if a print still comes out blank.
+    try {
+      const debugDir = join(app.getPath('userData'), 'printer-debug')
+      await mkdir(debugDir, { recursive: true })
+      await copyFile(pdfPath, join(debugDir, 'last-receipt.pdf'))
+    } catch {
+      // diagnostic copy is best-effort
+    }
+
+    if (process.platform === 'win32') {
+      // Bypasses Electron's silent-print blank-page bug (electron/electron#39179)
+      // by handing the PDF to SumatraPDF, which the bundled driver accepts.
+      await pdfPrint(pdfPath, {
+        printer: config.printerName || undefined,
+        silent: true
+      })
+    } else {
+      // pdf-to-printer ships SumatraPDF.exe only; fall back to Electron's
+      // own print path on macOS/Linux dev environments.
+      await new Promise<void>((resolve, reject) => {
+        window.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            deviceName: config.printerName || undefined,
+            margins: { marginType: 'none' },
+            dpi: { horizontal: 203, vertical: 203 },
+            pageSize: {
+              width: getPaperWidthMicrons(config),
+              height: getReceiptHeightMicrons(lines.length)
+            }
+          },
+          (success, failureReason) => {
+            if (success) {
+              resolve()
+            } else {
+              reject(new Error(failureReason || 'เครื่องพิมพ์ไม่ตอบสนอง'))
+            }
+          }
+        )
+      })
+    }
   } finally {
+    if (pdfPath) {
+      await unlink(pdfPath).catch(() => {})
+    }
     if (!window.isDestroyed()) {
       window.destroy()
     }
