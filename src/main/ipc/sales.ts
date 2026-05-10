@@ -158,7 +158,7 @@ export function registerSaleHandlers(): void {
 
     const items = db
       .prepare(
-        `SELECT si.*, p.name as product_name,
+        `SELECT si.*, p.name as product_name, p.description as product_description,
           COALESCE((SELECT SUM(ri.quantity) FROM refund_items ri WHERE ri.sale_item_id = si.id), 0) as refunded_qty
          FROM sale_items si
          JOIN products p ON p.id = si.product_id

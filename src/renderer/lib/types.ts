@@ -187,7 +187,7 @@ export interface CreateExchangeResult {
 
 export interface SaleWithItems extends Sale {
   customer_phone?: string
-  items: (SaleItem & { product_name: string })[]
+  items: (SaleItem & { product_name: string; product_description?: string | null })[]
   refunds?: RefundWithItems[]
   exchanges?: ExchangeWithDetails[]
 }

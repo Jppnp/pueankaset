@@ -89,15 +89,20 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
               const refundedQty = item.refunded_qty || 0
               return (
                 <tr key={item.id}>
-                  <td className="px-4 py-2 text-sm">{item.product_name}</td>
-                  <td className="px-4 py-2 text-sm text-right">
+                  <td className="px-4 py-2 text-sm">
+                    <div>{item.product_name}</div>
+                    {item.product_description && (
+                      <div className="text-xs text-gray-500 mt-0.5">{item.product_description}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-sm text-right align-top">
                     {item.quantity}
                     {refundedQty > 0 && (
                       <span className="text-red-500 text-xs ml-1">(คืน {refundedQty})</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-sm text-right">{formatBaht(item.price)}</td>
-                  <td className="px-4 py-2 text-sm text-right font-medium">
+                  <td className="px-4 py-2 text-sm text-right align-top">{formatBaht(item.price)}</td>
+                  <td className="px-4 py-2 text-sm text-right font-medium align-top">
                     {formatBaht(item.price * item.quantity)}
                   </td>
                 </tr>
