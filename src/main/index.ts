@@ -21,7 +21,13 @@ import { registerUpdaterHandlers, startAutoUpdater } from './ipc/updater'
 
 let mainWindow: BrowserWindow | null = null
 
-app.setName('เพื่อนเกษตร POS')
+const APP_ID = 'com.pueankaset.pos'
+const APP_NAME = 'เพื่อนเกษตร POS'
+
+app.setName(APP_NAME)
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_ID)
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -29,7 +35,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 1024,
     minHeight: 700,
-    title: 'เพื่อนเกษตร POS',
+    title: APP_NAME,
     icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -56,6 +62,12 @@ function createWindow(): void {
 }
 
 function getAppIconPath(): string {
+  if (process.platform === 'win32') {
+    return app.isPackaged
+      ? join(process.resourcesPath, 'icon.ico')
+      : join(__dirname, '../../build/icon.ico')
+  }
+
   return app.isPackaged
     ? join(process.resourcesPath, 'icon.png')
     : join(__dirname, '../../build/icon.png')
