@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeImage } from 'electron'
 import { join } from 'path'
 import { initDatabase, closeDatabase } from './database'
 import { registerProductHandlers } from './ipc/products'
@@ -20,6 +20,8 @@ import { registerExportHandlers } from './ipc/export'
 import { registerUpdaterHandlers, startAutoUpdater } from './ipc/updater'
 
 let mainWindow: BrowserWindow | null = null
+
+app.setName('เพื่อนเกษตร POS')
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -59,7 +61,18 @@ function getAppIconPath(): string {
     : join(__dirname, '../../build/icon.png')
 }
 
+function setDockIcon(): void {
+  if (process.platform !== 'darwin') return
+
+  const icon = nativeImage.createFromPath(getAppIconPath())
+  if (!icon.isEmpty()) {
+    app.dock.setIcon(icon)
+  }
+}
+
 app.whenReady().then(() => {
+  setDockIcon()
+
   initDatabase()
 
   registerProductHandlers()
