@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from 'electron'
+import { app, BrowserWindow, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { initDatabase, closeDatabase } from './database'
 import { registerProductHandlers } from './ipc/products'
@@ -30,6 +30,9 @@ if (process.platform === 'win32') {
 }
 
 function createWindow(): void {
+  const scaleFactor = screen.getPrimaryDisplay().scaleFactor || 1
+  const zoomFactor = 1 / scaleFactor
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -39,10 +42,16 @@ function createWindow(): void {
     icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      zoomFactor
     }
   })
   mainWindow.maximize()
+
+  // Re-apply on every load so the UI fits regardless of OS display scaling.
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.setZoomFactor(zoomFactor)
+  })
 
   // Load the renderer
   if (process.env['ELECTRON_RENDERER_URL']) {
