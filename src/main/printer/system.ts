@@ -113,7 +113,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
 function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
   const widthMm = config.paperWidthMm
   const heightMm = Math.ceil(getEstimatedReceiptHeightMicrons(lines.length, widthMm) / 1000)
-  const fontSize = widthMm === 80 ? 12 : 10
+  const fontSize = widthMm === 80 ? 12 : 11
   const body = lines.map((line) => renderLine(line, config)).join('')
 
   return `<!doctype html>
@@ -140,7 +140,9 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     }
     .line {
       white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+      word-break: normal;
+      line-break: loose;
     }
     .center { text-align: center; }
     .header {
@@ -174,6 +176,33 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       margin-left: auto;
       text-align: right;
       white-space: nowrap;
+    }
+    .item {
+      margin: 1mm 0;
+    }
+    .item-name {
+      font-size: ${fontSize + 1}px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .item-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 2mm;
+      padding-left: 1.5mm;
+      font-size: ${fontSize}px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+    .item-meta .qty {
+      flex: 1;
+      min-width: 0;
+    }
+    .item-meta .amount {
+      flex-shrink: 0;
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 700;
     }
     .description {
       padding-left: 1.5mm;
@@ -211,6 +240,10 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
     content = char.repeat(config.charactersPerLine)
     classes.push('separator')
   }
+  if (line.type === 'item') {
+    const itemMeta = renderItemMeta(line.rightContent ?? '')
+    return `<div class="item"><div class="line item-name">${escapeHtml(content)}</div>${itemMeta}</div>`
+  }
   if (line.type === 'item-row') {
     classes.push('item-row')
     const right = line.rightContent ?? ''
@@ -223,6 +256,20 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   }
 
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
+}
+
+function renderItemMeta(value: string): string {
+  const eqIdx = value.lastIndexOf('= ')
+  if (eqIdx < 0) {
+    return `<div class="line item-meta"><span class="qty">${escapeHtml(value)}</span></div>`
+  }
+
+  return [
+    '<div class="line item-meta">',
+    `<span class="qty">${escapeHtml(value.slice(0, eqIdx).trim())}</span>`,
+    `<span class="amount">= ${escapeHtml(value.slice(eqIdx + 2).trim())}</span>`,
+    '</div>'
+  ].join('')
 }
 
 function getSeparatorChar(content: string): string {

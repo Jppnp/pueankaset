@@ -40,7 +40,7 @@ export function buildReceipt(
   for (const item of items) {
     const lineTotal = item.price * item.quantity
     lines.push({
-      type: 'item-row',
+      type: 'item',
       content: item.product_name,
       rightContent: `${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`
     })
