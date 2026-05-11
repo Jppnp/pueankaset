@@ -9,21 +9,13 @@ export function formatBaht(amount: number): string {
 }
 
 export function formatThaiDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  const buddhistYear = date.getFullYear() + 543
-  const day = date.getDate().toString().padStart(2, '0')
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const hours = date.getHours().toString().padStart(2, '0')
-  const minutes = date.getMinutes().toString().padStart(2, '0')
-  return `${day}/${month}/${buddhistYear} ${hours}:${minutes}`
+  const parts = getThaiDateParts(dateStr, true)
+  return `${parts.day}/${parts.month}/${parts.buddhistYear} ${parts.hour}:${parts.minute}`
 }
 
 export function formatThaiDateShort(dateStr: string): string {
-  const date = new Date(dateStr)
-  const buddhistYear = date.getFullYear() + 543
-  const day = date.getDate().toString().padStart(2, '0')
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  return `${day}/${month}/${buddhistYear}`
+  const parts = getThaiDateParts(dateStr)
+  return `${parts.day}/${parts.month}/${parts.buddhistYear}`
 }
 
 export const THAI_MONTHS = [
@@ -33,11 +25,48 @@ export const THAI_MONTHS = [
 ]
 
 export function formatThaiDateLong(dateStr: string): string {
-  const date = new Date(dateStr)
-  const buddhistYear = date.getFullYear() + 543
-  const day = date.getDate()
-  const month = THAI_MONTHS[date.getMonth()]
-  return `${day} ${month} ${buddhistYear}`
+  const parts = getThaiDateParts(dateStr)
+  const month = THAI_MONTHS[Number(parts.month) - 1]
+  return `${Number(parts.day)} ${month} ${parts.buddhistYear}`
+}
+
+function getThaiDateParts(
+  dateStr: string,
+  includeTime = false
+): { day: string; month: string; buddhistYear: number; hour: string; minute: string } {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    ...(includeTime
+      ? {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }
+      : {})
+  }).formatToParts(parseStoredDate(dateStr))
+  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? ''
+
+  return {
+    day: get('day'),
+    month: get('month'),
+    buddhistYear: Number(get('year')) + 543,
+    hour: get('hour'),
+    minute: get('minute')
+  }
+}
+
+function parseStoredDate(dateStr: string): Date {
+  const value = dateStr.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T00:00:00Z`)
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value)) {
+    return new Date(`${value.replace(' ', 'T')}Z`)
+  }
+  return new Date(dateStr)
 }
 
 export function toISODate(date: Date): string {

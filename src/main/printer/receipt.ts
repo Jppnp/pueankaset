@@ -5,6 +5,10 @@ export interface ReceiptLine {
   bold?: boolean
 }
 
+const SHOP_NAME = 'ก.เพื่อนเกษตร'
+const SHOP_PHONE = '085-733-1118'
+const DOTTED_SEPARATOR = '................................'
+
 export function buildReceipt(
   sale: {
     id: number
@@ -23,15 +27,15 @@ export function buildReceipt(
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
 
-  lines.push({ type: 'header', content: 'เพื่อนเกษตร', bold: true })
-  lines.push({ type: 'header', content: '0857331118' })
-  lines.push({ type: 'separator', content: '================================' })
-  lines.push({ type: 'text', content: `ใบเสร็จ #${sale.id}` })
-  lines.push({ type: 'text', content: `วันที่: ${formatThaiDateTime(sale.date)}` })
+  lines.push({ type: 'header', content: SHOP_NAME, bold: true })
+  lines.push({ type: 'header', content: SHOP_PHONE, bold: true })
+  lines.push({ type: 'header', content: 'ใบเสร็จรับเงิน' })
+  lines.push({ type: 'header', content: `รายการที่ #${sale.id}`, bold: true })
+  lines.push({ type: 'header', content: formatThaiDateTime(sale.date) })
   if (sale.customer_name) {
     lines.push({ type: 'text', content: `ลูกค้า: ${sale.customer_name}` })
   }
-  lines.push({ type: 'separator', content: '--------------------------------' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
 
   for (const item of items) {
     const lineTotal = item.price * item.quantity
@@ -46,7 +50,7 @@ export function buildReceipt(
     }
   }
 
-  lines.push({ type: 'separator', content: '================================' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
 
   const itemsSubtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const cardFee = sale.total_amount - itemsSubtotal
@@ -72,7 +76,7 @@ export function buildReceipt(
     lines.push({ type: 'text', content: `หมายเหตุ: ${sale.remark}` })
   }
 
-  lines.push({ type: 'separator', content: '--------------------------------' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
   lines.push({ type: 'footer', content: 'ขอบคุณที่อุดหนุน' })
 
   return lines
@@ -99,23 +103,23 @@ export function buildDebtReceipt(
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
 
-  lines.push({ type: 'header', content: 'เพื่อนเกษตร', bold: true })
-  lines.push({ type: 'header', content: '0857331118' })
-  lines.push({ type: 'separator', content: '================================' })
-  lines.push({ type: 'text', content: 'ใบสรุปยอดค้างชำระ', bold: true })
+  lines.push({ type: 'header', content: SHOP_NAME, bold: true })
+  lines.push({ type: 'header', content: SHOP_PHONE, bold: true })
+  lines.push({ type: 'header', content: 'ใบสรุปยอดค้างชำระ', bold: true })
+  lines.push({ type: 'header', content: formatThaiDateTime(new Date().toISOString()) })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
   lines.push({ type: 'text', content: `ลูกค้า: ${customer.name}` })
   if (customer.phone) {
     lines.push({ type: 'text', content: `โทร: ${customer.phone}` })
   }
-  lines.push({ type: 'text', content: `วันที่พิมพ์: ${formatThaiDateTime(new Date().toISOString())}` })
-  lines.push({ type: 'separator', content: '================================' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
 
   if (sales.length === 0) {
     lines.push({ type: 'text', content: 'ไม่มีรายการค้างชำระ' })
   } else {
     sales.forEach((sale, index) => {
       if (index > 0) {
-        lines.push({ type: 'separator', content: '--------------------------------' })
+        lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
       }
       lines.push({
         type: 'item-row',
@@ -158,13 +162,13 @@ export function buildDebtReceipt(
     })
   }
 
-  lines.push({ type: 'separator', content: '================================' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
   lines.push({
     type: 'total',
     content: `ค้างรวมทั้งสิ้น: ${formatBaht(outstandingTotal)}`,
     bold: true
   })
-  lines.push({ type: 'separator', content: '--------------------------------' })
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
   lines.push({ type: 'footer', content: 'ขอบคุณที่อุดหนุน' })
 
   return lines
@@ -176,7 +180,7 @@ function formatThaiDate(dateStr: string): string {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).formatToParts(new Date(dateStr))
+  }).formatToParts(parseStoredDate(dateStr))
   const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? ''
   const buddhistYear = Number(get('year')) + 543
   return `${get('day')}/${get('month')}/${buddhistYear}`
@@ -194,9 +198,21 @@ function formatThaiDateTime(dateStr: string): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false
-  }).formatToParts(new Date(dateStr))
+  }).formatToParts(parseStoredDate(dateStr))
   const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? ''
   const buddhistYear = Number(get('year')) + 543
-  return `${get('day')}/${get('month')}/${buddhistYear} ${get('hour')}:${get('minute')}`
+  return `${Number(get('day'))}/${Number(get('month'))}/${buddhistYear} ${get('hour')}:${get('minute')}:${get('second')}`
+}
+
+function parseStoredDate(dateStr: string): Date {
+  const value = dateStr.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T00:00:00Z`)
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value)) {
+    return new Date(`${value.replace(' ', 'T')}Z`)
+  }
+  return new Date(dateStr)
 }

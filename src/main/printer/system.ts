@@ -130,6 +130,10 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       overflow-wrap: anywhere;
     }
     .center { text-align: center; }
+    .header {
+      font-size: ${fontSize + 2}px;
+      line-height: 1.25;
+    }
     .bold { font-weight: 700; }
     .total {
       font-size: ${fontSize + 8}px;
@@ -137,6 +141,9 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     }
     .separator {
       font-family: "Courier New", monospace;
+      font-size: ${fontSize + 1}px;
+      line-height: 1.1;
+      margin: 0.5mm 0;
       white-space: pre;
       overflow: hidden;
     }
@@ -168,6 +175,9 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   if (line.type === 'header' || line.type === 'footer') {
     classes.push('center')
   }
+  if (line.type === 'header') {
+    classes.push('header')
+  }
   if (line.bold) {
     classes.push('bold')
   }
@@ -178,7 +188,7 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
     classes.push('description')
   }
   if (line.type === 'separator') {
-    const char = line.content.includes('=') ? '=' : '-'
+    const char = getSeparatorChar(line.content)
     content = char.repeat(config.charactersPerLine)
     classes.push('separator')
   }
@@ -194,6 +204,12 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   }
 
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
+}
+
+function getSeparatorChar(content: string): string {
+  if (content.includes('.')) return '.'
+  if (content.includes('=')) return '='
+  return '-'
 }
 
 function getReceiptHeightMicrons(lineCount: number, paperWidthMm: number): number {

@@ -48,7 +48,7 @@ function buildEscPosBuffer(lines: ReceiptLine[], config: PrinterConfig): Buffer 
 
 function formatContent(line: ReceiptLine, width: number): string {
   if (line.type === 'separator') {
-    const char = line.content.includes('=') ? '=' : '-'
+    const char = getSeparatorChar(line.content)
     return char.repeat(width)
   }
 
@@ -61,6 +61,12 @@ function formatContent(line: ReceiptLine, width: number): string {
   }
 
   return line.content
+}
+
+function getSeparatorChar(content: string): string {
+  if (content.includes('.')) return '.'
+  if (content.includes('=')) return '='
+  return '-'
 }
 
 function justify(left: string, right: string, width: number): string {
