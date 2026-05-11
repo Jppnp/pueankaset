@@ -128,15 +128,20 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    * { color: #000 !important; }
+    * {
+      color: #000 !important;
+      -webkit-font-smoothing: none;
+      font-smooth: never;
+      text-rendering: geometricPrecision;
+    }
     .receipt {
       box-sizing: border-box;
       width: ${widthMm}mm;
       padding: 2mm 1.5mm 2mm;
-      font-family: Sarabun, Tahoma, Arial, sans-serif;
+      font-family: Tahoma, "IBM Plex Sans Thai", Sarabun, "Noto Sans Thai", Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.35;
-      font-weight: 500;
+      font-weight: 700;
     }
     .line {
       white-space: pre-wrap;
@@ -188,25 +193,32 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     .item-meta {
       display: flex;
       justify-content: space-between;
+      align-items: flex-end;
       gap: 2mm;
       padding-left: 1.5mm;
       font-size: ${fontSize}px;
       line-height: 1.25;
-      font-weight: 600;
+      font-weight: 700;
     }
-    .item-meta .qty {
+    .item-meta .desc {
       flex: 1;
       min-width: 0;
+      text-align: left;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
-    .item-meta .amount {
+    .item-meta .price {
       flex-shrink: 0;
       text-align: right;
+      white-space: nowrap;
+    }
+    .item-meta .amount {
       white-space: nowrap;
       font-weight: 700;
     }
     .description {
       padding-left: 1.5mm;
-      font-weight: 600;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -241,7 +253,7 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
     classes.push('separator')
   }
   if (line.type === 'item') {
-    const itemMeta = renderItemMeta(line.rightContent ?? '')
+    const itemMeta = renderItemMeta(line.rightContent ?? '', line.description)
     return `<div class="item"><div class="line item-name">${escapeHtml(content)}</div>${itemMeta}</div>`
   }
   if (line.type === 'item-row') {
@@ -258,16 +270,18 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
 }
 
-function renderItemMeta(value: string): string {
+function renderItemMeta(value: string, description?: string): string {
+  const desc = description?.trim() ?? ''
   const eqIdx = value.lastIndexOf('= ')
-  if (eqIdx < 0) {
-    return `<div class="line item-meta"><span class="qty">${escapeHtml(value)}</span></div>`
-  }
+  const priceHtml =
+    eqIdx < 0
+      ? escapeHtml(value)
+      : `${escapeHtml(value.slice(0, eqIdx).trim())} <span class="amount">= ${escapeHtml(value.slice(eqIdx + 2).trim())}</span>`
 
   return [
     '<div class="line item-meta">',
-    `<span class="qty">${escapeHtml(value.slice(0, eqIdx).trim())}</span>`,
-    `<span class="amount">= ${escapeHtml(value.slice(eqIdx + 2).trim())}</span>`,
+    `<span class="desc">${escapeHtml(desc)}</span>`,
+    `<span class="price">${priceHtml}</span>`,
     '</div>'
   ].join('')
 }

@@ -2,6 +2,7 @@ export interface ReceiptLine {
   type: 'header' | 'text' | 'item' | 'item-row' | 'description' | 'separator' | 'total' | 'footer'
   content: string
   rightContent?: string
+  description?: string
   bold?: boolean
 }
 
@@ -42,12 +43,9 @@ export function buildReceipt(
     lines.push({
       type: 'item',
       content: item.product_name,
-      rightContent: `${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`
+      rightContent: `${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`,
+      description: item.description?.trim() || undefined
     })
-    const description = item.description?.trim()
-    if (description) {
-      lines.push({ type: 'description', content: description })
-    }
   }
 
   lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
