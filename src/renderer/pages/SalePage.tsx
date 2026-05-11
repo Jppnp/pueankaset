@@ -95,17 +95,17 @@ export function SalePage() {
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       <ParkedOrderBar
         orders={parked.parkedOrders}
         onLoad={handleLoadParked}
         onDelete={parked.deleteParkedOrder}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left panel - Search */}
-        <div className="flex-1 flex flex-col border-r">
-          <div className="p-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col border-r">
+          <div className="shrink-0 p-4">
             <SearchBar value={query} onChange={setQuery} onClear={handleClearSearch} />
           </div>
           <SearchResults
@@ -117,8 +117,8 @@ export function SalePage() {
         </div>
 
         {/* Right panel - Order */}
-        <div className="w-96 flex flex-col shrink-0">
-          <div className="px-4 pt-3 pb-2 border-b">
+        <div className="flex min-h-0 w-96 shrink-0 flex-col">
+          <div className="shrink-0 px-4 pt-3 pb-2 border-b">
             <CustomerSelector
               selectedCustomer={selectedCustomer}
               onSelect={setSelectedCustomer}

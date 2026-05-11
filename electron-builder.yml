@@ -1,8 +1,12 @@
 appId: com.pueankaset.pos
 productName: เพื่อนเกษตร POS
+icon: build/icon.png
 directories:
   buildResources: build
   output: dist
+extraResources:
+  - from: build/icon.png
+    to: icon.png
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -14,6 +18,7 @@ asarUnpack:
   - node_modules/better-sqlite3/**
   - node_modules/pdf-to-printer/**
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -26,6 +31,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 mac:
+  icon: build/icon.icns
   target:
     - target: dmg
       arch:

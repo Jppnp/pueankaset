@@ -64,7 +64,8 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
         printer: config.printerName || undefined,
         silent: true,
         orientation: 'portrait',
-        scale: 'noscale'
+        scale: 'fit',
+        monochrome: true
       })
     } else {
       // pdf-to-printer ships SumatraPDF.exe only; fall back to Electron's
@@ -116,14 +117,20 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
   <style>
     @page { margin: 0; size: ${widthMm}mm ${heightMm}mm; }
     html, body { margin: 0; padding: 0; background: #fff; }
-    body { color: #000; }
+    body {
+      color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    * { color: #000 !important; }
     .receipt {
       box-sizing: border-box;
       width: ${widthMm}mm;
-      padding: 3mm 3mm 2mm;
+      padding: 2mm 1.5mm 2mm;
       font-family: Sarabun, Tahoma, Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.35;
+      font-weight: 500;
     }
     .line {
       white-space: pre-wrap;
@@ -150,15 +157,21 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     .item-row {
       display: flex;
       justify-content: space-between;
-      gap: 4mm;
+      gap: 1.5mm;
+    }
+    .item-row .left {
+      flex: 1;
+      min-width: 0;
     }
     .item-row .right {
       flex-shrink: 0;
+      margin-left: auto;
+      text-align: right;
       white-space: nowrap;
     }
     .description {
-      color: #666;
-      padding-left: 3mm;
+      padding-left: 1.5mm;
+      font-weight: 600;
     }
   </style>
 </head>

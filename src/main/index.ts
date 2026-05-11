@@ -28,11 +28,13 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 700,
     title: 'เพื่อนเกษตร POS',
+    icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
+  mainWindow.maximize()
 
   // Load the renderer
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -49,6 +51,12 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function getAppIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'icon.png')
+    : join(__dirname, '../../build/icon.png')
 }
 
 app.whenReady().then(() => {

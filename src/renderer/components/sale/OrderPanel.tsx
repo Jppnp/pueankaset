@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import type { OrderItem } from '../../lib/types'
 import { formatBaht } from '../../lib/format'
 
@@ -21,13 +21,62 @@ export function OrderPanel({
   onCheckout,
   onPark
 }: OrderPanelProps) {
+  const [quantityInputs, setQuantityInputs] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    setQuantityInputs((prev) => {
+      let changed = false
+      const next = { ...prev }
+      const itemMap = new Map(items.map((item) => [item.product_id, item.quantity]))
+
+      for (const key of Object.keys(next)) {
+        const productId = Number(key)
+        const quantity = itemMap.get(productId)
+
+        if (quantity === undefined || next[productId] === String(quantity)) {
+          delete next[productId]
+          changed = true
+        }
+      }
+
+      return changed ? next : prev
+    })
+  }, [items])
+
+  const handleQuantityChange = (productId: number, value: string) => {
+    setQuantityInputs((prev) => ({ ...prev, [productId]: value }))
+
+    const quantity = Number.parseInt(value, 10)
+    if (Number.isNaN(quantity) || quantity <= 0) return
+
+    onUpdateQuantity(productId, quantity)
+  }
+
+  const handleQuantityBlur = (productId: number) => {
+    const draftValue = quantityInputs[productId]
+    if (draftValue === undefined) return
+
+    const quantity = Number.parseInt(draftValue, 10)
+    if (!Number.isNaN(quantity) && quantity > 0) {
+      onUpdateQuantity(productId, quantity)
+    }
+
+    setQuantityInputs((prev) => {
+      if (!(productId in prev)) return prev
+
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b bg-gray-50">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-4 py-3 border-b bg-gray-50">
         <h2 className="font-semibold text-gray-700">รายการสั่งซื้อ ({items.length} รายการ)</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {items.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             <p>ยังไม่มีสินค้าในรายการ</p>
@@ -61,10 +110,9 @@ export function OrderPanel({
                     </button>
                     <input
                       type="number"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        onUpdateQuantity(item.product_id, parseInt(e.target.value) || 0)
-                      }
+                      value={quantityInputs[item.product_id] ?? String(item.quantity)}
+                      onChange={(e) => handleQuantityChange(item.product_id, e.target.value)}
+                      onBlur={() => handleQuantityBlur(item.product_id)}
                       aria-label={`จำนวน ${item.name}`}
                       className="w-12 text-center border rounded py-0.5 text-sm"
                       min={1}
@@ -97,7 +145,7 @@ export function OrderPanel({
         )}
       </div>
 
-      <div className="border-t bg-white p-4">
+      <div className="shrink-0 border-t bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <span className="text-lg font-semibold text-gray-700">รวมทั้งสิ้น</span>
           <span className="text-2xl font-bold text-green-700">{formatBaht(total)}</span>

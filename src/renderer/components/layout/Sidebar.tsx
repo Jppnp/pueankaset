@@ -34,7 +34,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-56 bg-green-800 text-white flex flex-col h-screen shrink-0">
+    <aside className="w-56 bg-green-800 text-white flex h-full min-h-0 shrink-0 flex-col">
       <div className="px-4 py-5 border-b border-green-700">
         <h1 className="text-xl font-bold">เพื่อนเกษตร</h1>
         <p className="text-green-300 text-sm">ระบบขายหน้าร้าน</p>

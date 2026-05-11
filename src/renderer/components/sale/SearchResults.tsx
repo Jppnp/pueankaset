@@ -12,7 +12,7 @@ interface SearchResultsProps {
 export function SearchResults({ results, loading, onSelect, query }: SearchResultsProps) {
   if (!query.trim()) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
+      <div className="flex min-h-0 flex-1 items-center justify-center text-gray-400">
         <p>พิมพ์ชื่อสินค้าเพื่อค้นหา</p>
       </div>
     )
@@ -20,7 +20,7 @@ export function SearchResults({ results, loading, onSelect, query }: SearchResul
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
+      <div className="flex min-h-0 flex-1 items-center justify-center text-gray-400">
         <p>กำลังค้นหา...</p>
       </div>
     )
@@ -28,14 +28,14 @@ export function SearchResults({ results, loading, onSelect, query }: SearchResul
 
   if (results.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
+      <div className="flex min-h-0 flex-1 items-center justify-center text-gray-400">
         <p>ไม่พบสินค้า &ldquo;{query}&rdquo;</p>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 overflow-y-auto" role="listbox" aria-label="ผลการค้นหาสินค้า">
+    <div className="min-h-0 flex-1 overflow-y-auto" role="listbox" aria-label="ผลการค้นหาสินค้า">
       {results.map((product) => (
         <button
           role="option"

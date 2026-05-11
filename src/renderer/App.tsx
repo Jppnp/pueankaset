@@ -21,9 +21,9 @@ function AppRoutes() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen min-h-0 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 min-h-0 min-w-0 overflow-hidden">
         <Routes>
           <Route path="/" element={<SalePage />} />
           <Route
