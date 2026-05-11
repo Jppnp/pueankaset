@@ -30,55 +30,6 @@ export function registerImportHandlers(): void {
         insertProduct.run(p.id, p.name, p.description, p.cost_price, p.sale_price, p.stock_on_hand, p.exclude_from_profit ?? 0, storeId)
       }
 
-      // Import sales
-      const sales = sourceDb.prepare('SELECT * FROM sales').all() as {
-        id: number
-        date: string
-        remark: string | null
-      }[]
-
-      const insertSale = db.prepare(
-        `INSERT OR REPLACE INTO sales (id, date, total_amount, remark) VALUES (?, ?, ?, ?)`
-      )
-
-      // Import sale_items
-      const saleItems = sourceDb.prepare('SELECT * FROM sale_items').all() as {
-        id: number
-        sale_id: number
-        product_id: number
-        quantity: number
-        price: number
-        cost_price: number
-      }[]
-
-      // Calculate total_amount per sale
-      const saleTotals = new Map<number, number>()
-      for (const item of saleItems) {
-        const current = saleTotals.get(item.sale_id) ?? 0
-        saleTotals.set(item.sale_id, current + item.price * item.quantity)
-      }
-
-      for (const s of sales) {
-        const total = saleTotals.get(s.id) ?? 0
-        insertSale.run(s.id, s.date, total, s.remark)
-      }
-
-      const insertSaleItem = db.prepare(
-        `INSERT OR REPLACE INTO sale_items (id, sale_id, product_id, quantity, price, cost_price)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-
-      for (const item of saleItems) {
-        insertSaleItem.run(
-          item.id,
-          item.sale_id,
-          item.product_id,
-          item.quantity,
-          item.price,
-          item.cost_price
-        )
-      }
-
       return { imported: products.length }
     })
 
