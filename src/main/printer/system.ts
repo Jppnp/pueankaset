@@ -137,7 +137,7 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     .receipt {
       box-sizing: border-box;
       width: ${widthMm}mm;
-      padding: 2mm 1.5mm 2mm;
+      padding: 2mm 4mm 2mm 2mm;
       font-family: Tahoma, "IBM Plex Sans Thai", Sarabun, "Noto Sans Thai", Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.35;
@@ -206,6 +206,7 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       text-align: left;
       overflow-wrap: break-word;
       word-break: normal;
+      font-weight: 400;
     }
     .item-meta .price {
       flex-shrink: 0;
@@ -218,7 +219,7 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     }
     .description {
       padding-left: 1.5mm;
-      font-weight: 700;
+      font-weight: 400;
     }
   </style>
 </head>

@@ -43,7 +43,7 @@ export function buildReceipt(
     lines.push({
       type: 'item',
       content: item.product_name,
-      rightContent: `${item.quantity} x ${formatBaht(item.price)} = ${formatBaht(lineTotal)}`,
+      rightContent: `${item.quantity} x ${formatAmount(item.price)} = ${formatAmount(lineTotal)}`,
       description: item.description?.trim() || undefined
     })
   }
@@ -186,6 +186,10 @@ function formatThaiDate(dateStr: string): string {
 
 function formatBaht(amount: number): string {
   return `฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatAmount(amount: number): string {
+  return amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function formatThaiDateTime(dateStr: string): string {
