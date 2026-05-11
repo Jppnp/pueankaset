@@ -25,8 +25,8 @@ const DEFAULT_CONFIG: PrinterConfig = {
   host: '',
   port: 9100,
   devicePath: '',
-  paperWidthMm: 58,
-  charactersPerLine: 32,
+  paperWidthMm: 80,
+  charactersPerLine: 48,
   encoding: 'tis620',
   codePage: 21,
   cutPaper: true
@@ -63,7 +63,7 @@ export function savePrinterConfig(db: Database.Database, config: PrinterConfig):
 
 export function normalizePrinterConfig(input: unknown, defaultMode: PrinterMode): PrinterConfig {
   const raw = isRecord(input) ? input : {}
-  const paperWidthMm = toPaperWidth(raw.paperWidthMm)
+  const paperWidthMm = toPaperWidth(raw.paperWidthMm, raw.charactersPerLine)
 
   return {
     mode: toPrinterMode(raw.mode, defaultMode),
@@ -73,8 +73,8 @@ export function normalizePrinterConfig(input: unknown, defaultMode: PrinterMode)
     devicePath: toTrimmedString(raw.devicePath),
     paperWidthMm,
     charactersPerLine: toInteger(
-      raw.charactersPerLine,
-      paperWidthMm === 80 ? 48 : DEFAULT_CONFIG.charactersPerLine
+      normalizeCharactersPerLine(raw.charactersPerLine, paperWidthMm),
+      paperWidthMm === 80 ? 48 : 32
     ),
     encoding: toEncoding(raw.encoding),
     codePage: toInteger(raw.codePage, DEFAULT_CONFIG.codePage),
@@ -142,6 +142,19 @@ function toEncoding(value: unknown): PrinterTextEncoding {
     : DEFAULT_CONFIG.encoding
 }
 
-function toPaperWidth(value: unknown): PaperWidthMm {
-  return value === 80 || value === '80' ? 80 : DEFAULT_CONFIG.paperWidthMm
+function toPaperWidth(value: unknown, charactersPerLine: unknown): PaperWidthMm {
+  if (value === 80 || value === '80') return 80
+  if (value === 58 || value === '58') {
+    return isLegacyDefaultPaperConfig(charactersPerLine) ? DEFAULT_CONFIG.paperWidthMm : 58
+  }
+  return DEFAULT_CONFIG.paperWidthMm
+}
+
+function normalizeCharactersPerLine(value: unknown, paperWidthMm: PaperWidthMm): unknown {
+  if (paperWidthMm === 80 && isLegacyDefaultPaperConfig(value)) return 48
+  return value
+}
+
+function isLegacyDefaultPaperConfig(charactersPerLine: unknown): boolean {
+  return charactersPerLine === undefined || charactersPerLine === 32 || charactersPerLine === '32'
 }

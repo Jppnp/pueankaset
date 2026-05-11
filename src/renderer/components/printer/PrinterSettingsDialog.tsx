@@ -14,8 +14,8 @@ const FALLBACK_CONFIG: PrinterConfig = {
   host: '',
   port: 9100,
   devicePath: '',
-  paperWidthMm: 58,
-  charactersPerLine: 32,
+  paperWidthMm: 80,
+  charactersPerLine: 48,
   encoding: 'tis620',
   codePage: 21,
   cutPaper: true
