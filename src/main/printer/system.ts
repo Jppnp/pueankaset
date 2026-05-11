@@ -185,10 +185,20 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     .item {
       margin: 1mm 0;
     }
+    .item.inline {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 2mm;
+    }
     .item-name {
       font-size: ${fontSize + 1}px;
       line-height: 1.25;
       font-weight: 700;
+    }
+    .item.inline .item-name {
+      flex: 1;
+      min-width: 0;
     }
     .item-meta {
       display: flex;
@@ -207,12 +217,14 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       overflow-wrap: break-word;
       word-break: normal;
     }
-    .item-meta .price {
+    .price {
       flex-shrink: 0;
       text-align: right;
       white-space: nowrap;
+      font-size: ${fontSize}px;
+      font-weight: 400;
     }
-    .item-meta .amount {
+    .amount {
       white-space: nowrap;
       font-weight: 700;
     }
@@ -253,8 +265,27 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
     classes.push('separator')
   }
   if (line.type === 'item') {
-    const itemMeta = renderItemMeta(line.rightContent ?? '', line.description)
-    return `<div class="item"><div class="line item-name">${escapeHtml(content)}</div>${itemMeta}</div>`
+    const description = line.description?.trim() ?? ''
+    const priceHtml = renderPriceBlock(line.rightContent ?? '')
+
+    if (!description) {
+      return [
+        '<div class="item inline">',
+        `<div class="item-name">${escapeHtml(content)}</div>`,
+        `<div class="price">${priceHtml}</div>`,
+        '</div>'
+      ].join('')
+    }
+
+    return [
+      '<div class="item">',
+      `<div class="line item-name">${escapeHtml(content)}</div>`,
+      '<div class="line item-meta">',
+      `<span class="desc">${escapeHtml(description)}</span>`,
+      `<span class="price">${priceHtml}</span>`,
+      '</div>',
+      '</div>'
+    ].join('')
   }
   if (line.type === 'item-row') {
     classes.push('item-row')
@@ -270,20 +301,10 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
 }
 
-function renderItemMeta(value: string, description?: string): string {
-  const desc = description?.trim() ?? ''
+function renderPriceBlock(value: string): string {
   const eqIdx = value.lastIndexOf('= ')
-  const priceHtml =
-    eqIdx < 0
-      ? escapeHtml(value)
-      : `${escapeHtml(value.slice(0, eqIdx).trim())} <span class="amount">= ${escapeHtml(value.slice(eqIdx + 2).trim())}</span>`
-
-  return [
-    '<div class="line item-meta">',
-    `<span class="desc">${escapeHtml(desc)}</span>`,
-    `<span class="price">${priceHtml}</span>`,
-    '</div>'
-  ].join('')
+  if (eqIdx < 0) return escapeHtml(value)
+  return `${escapeHtml(value.slice(0, eqIdx).trim())} <span class="amount">= ${escapeHtml(value.slice(eqIdx + 2).trim())}</span>`
 }
 
 function getSeparatorChar(content: string): string {
