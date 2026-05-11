@@ -1,5 +1,5 @@
 export interface ReceiptLine {
-  type: 'header' | 'text' | 'item' | 'item-row' | 'description' | 'separator' | 'total' | 'footer'
+  type: 'header' | 'subheader' | 'text' | 'item' | 'item-row' | 'description' | 'separator' | 'total' | 'footer'
   content: string
   rightContent?: string
   description?: string
@@ -30,9 +30,9 @@ export function buildReceipt(
 
   lines.push({ type: 'header', content: SHOP_NAME, bold: true })
   lines.push({ type: 'header', content: SHOP_PHONE, bold: true })
-  lines.push({ type: 'header', content: 'ใบเสร็จรับเงิน' })
-  lines.push({ type: 'header', content: `รายการที่ #${sale.id}`, bold: true })
-  lines.push({ type: 'header', content: formatThaiDateTime(sale.date) })
+  lines.push({ type: 'subheader', content: 'ใบเสร็จรับเงิน' })
+  lines.push({ type: 'subheader', content: `รายการที่ #${sale.id}`, bold: true })
+  lines.push({ type: 'subheader', content: formatThaiDateTime(sale.date) })
   if (sale.customer_name) {
     lines.push({ type: 'text', content: `ลูกค้า: ${sale.customer_name}` })
   }
@@ -60,7 +60,7 @@ export function buildReceipt(
 
   lines.push({
     type: 'total',
-    content: `รวม: ${formatBaht(sale.total_amount)}`,
+    content: `ยอดรวม: ${formatBaht(sale.total_amount)}`,
     bold: true
   })
 

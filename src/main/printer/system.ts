@@ -198,7 +198,7 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       padding-left: 1.5mm;
       font-size: ${fontSize}px;
       line-height: 1.25;
-      font-weight: 700;
+      font-weight: 400;
     }
     .item-meta .desc {
       flex: 1;
@@ -206,7 +206,6 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
       text-align: left;
       overflow-wrap: break-word;
       word-break: normal;
-      font-weight: 400;
     }
     .item-meta .price {
       flex-shrink: 0;
@@ -233,7 +232,7 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   const classes = ['line']
   let content = line.content
 
-  if (line.type === 'header' || line.type === 'footer') {
+  if (line.type === 'header' || line.type === 'subheader' || line.type === 'footer') {
     classes.push('center')
   }
   if (line.type === 'header') {
