@@ -35,11 +35,12 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
     // Electron 21), unlike webContents.print which uses microns. Mixing them
     // up produces a ~2km-square page with content rendered as a tiny dot.
     const pdf = await window.webContents.printToPDF({
+      landscape: false,
       printBackground: true,
       margins: { marginType: 'none' },
       pageSize: {
         width: config.paperWidthMm / 25.4,
-        height: getReceiptHeightMicrons(lines.length) / 25400
+        height: getReceiptHeightMicrons(lines.length, config.paperWidthMm) / 25400
       }
     })
 
@@ -61,7 +62,9 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
       // by handing the PDF to SumatraPDF, which the bundled driver accepts.
       await pdfPrint(pdfPath, {
         printer: config.printerName || undefined,
-        silent: true
+        silent: true,
+        orientation: 'portrait',
+        scale: 'noscale'
       })
     } else {
       // pdf-to-printer ships SumatraPDF.exe only; fall back to Electron's
@@ -73,10 +76,11 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
             printBackground: true,
             deviceName: config.printerName || undefined,
             margins: { marginType: 'none' },
+            landscape: false,
             dpi: { horizontal: 203, vertical: 203 },
             pageSize: {
               width: getPaperWidthMicrons(config),
-              height: getReceiptHeightMicrons(lines.length)
+              height: getReceiptHeightMicrons(lines.length, config.paperWidthMm)
             }
           },
           (success, failureReason) => {
@@ -101,7 +105,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
 
 function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
   const widthMm = config.paperWidthMm
-  const heightMm = Math.ceil(getReceiptHeightMicrons(lines.length) / 1000)
+  const heightMm = Math.ceil(getReceiptHeightMicrons(lines.length, widthMm) / 1000)
   const fontSize = widthMm === 80 ? 12 : 10
   const body = lines.map((line) => renderLine(line, config)).join('')
 
@@ -192,11 +196,14 @@ function renderLine(line: ReceiptLine, config: PrinterConfig): string {
   return `<div class="${classes.join(' ')}">${escapeHtml(content)}</div>`
 }
 
-function getReceiptHeightMicrons(lineCount: number): number {
+function getReceiptHeightMicrons(lineCount: number, paperWidthMm: number): number {
   // 8mm padding (CSS) + 5mm slack for the enlarged total line +
   // ~5.5mm per line at 12px/1.35 line-height. Keeping this tight
-  // prevents thermal printers from feeding excess blank paper.
-  return 13000 + lineCount * 5500
+  // prevents thermal printers from feeding excess blank paper. Very short
+  // 80mm receipts still need a portrait-shaped PDF or Sumatra may rotate them.
+  const measuredHeightMicrons = 13000 + lineCount * 5500
+  const portraitMinimumMicrons = Math.max(80000, (paperWidthMm + 10) * 1000)
+  return Math.max(measuredHeightMicrons, portraitMinimumMicrons)
 }
 
 function escapeHtml(value: string): string {
