@@ -24,12 +24,18 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
 
     // did-finish-load fires before paint completes; without this wait the PDF
     // surface can be captured mid-render and emit blank pages.
-    await window.webContents.executeJavaScript(
+    const receiptHeightMicrons = await window.webContents.executeJavaScript(
       `(async () => {
         if (document.fonts && document.fonts.ready) { await document.fonts.ready }
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        const receipt = document.querySelector('.receipt')
+        if (!receipt) { return ${getEstimatedReceiptHeightMicrons(lines.length, config.paperWidthMm)} }
+        const rect = receipt.getBoundingClientRect()
+        const heightPx = Math.max(receipt.scrollHeight, rect.height)
+        const heightMm = Math.ceil((heightPx * 25.4) / 96) + 2
+        return Math.max(heightMm * 1000, ${(config.paperWidthMm + 2) * 1000})
       })()`
-    )
+    ) as number
 
     // printToPDF's pageSize is in INCHES (Puppeteer-compatible API since
     // Electron 21), unlike webContents.print which uses microns. Mixing them
@@ -40,7 +46,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
       margins: { marginType: 'none' },
       pageSize: {
         width: config.paperWidthMm / 25.4,
-        height: getReceiptHeightMicrons(lines.length, config.paperWidthMm) / 25400
+        height: receiptHeightMicrons / 25400
       }
     })
 
@@ -64,7 +70,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
         printer: config.printerName || undefined,
         silent: true,
         orientation: 'portrait',
-        scale: 'fit',
+        scale: 'noscale',
         monochrome: true
       })
     } else {
@@ -81,7 +87,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
             dpi: { horizontal: 203, vertical: 203 },
             pageSize: {
               width: getPaperWidthMicrons(config),
-              height: getReceiptHeightMicrons(lines.length, config.paperWidthMm)
+              height: receiptHeightMicrons
             }
           },
           (success, failureReason) => {
@@ -106,7 +112,7 @@ export async function printSystemReceipt(lines: ReceiptLine[], config: PrinterCo
 
 function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
   const widthMm = config.paperWidthMm
-  const heightMm = Math.ceil(getReceiptHeightMicrons(lines.length, widthMm) / 1000)
+  const heightMm = Math.ceil(getEstimatedReceiptHeightMicrons(lines.length, widthMm) / 1000)
   const fontSize = widthMm === 80 ? 12 : 10
   const body = lines.map((line) => renderLine(line, config)).join('')
 
@@ -225,7 +231,7 @@ function getSeparatorChar(content: string): string {
   return '-'
 }
 
-function getReceiptHeightMicrons(lineCount: number, paperWidthMm: number): number {
+function getEstimatedReceiptHeightMicrons(lineCount: number, paperWidthMm: number): number {
   // 5mm padding (CSS) + 4mm slack for the enlarged total line +
   // ~5.5mm per line at 12px/1.35 line-height. The tiny portrait minimum keeps
   // short PDFs from rotating without feeding a long blank tail after the footer.
