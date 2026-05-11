@@ -38,7 +38,7 @@ function buildEscPosBuffer(lines: ReceiptLine[], config: PrinterConfig): Buffer 
     parts.push(Buffer.from([0x1b, 0x45, 0]))
   }
 
-  parts.push(Buffer.from([0x1b, 0x64, 0x03])) // Feed three lines
+  parts.push(Buffer.from([0x1b, 0x64, 0x01])) // Feed one line before cut
   if (config.cutPaper) {
     parts.push(Buffer.from([0x1d, 0x56, 0x42, 0x00])) // Partial cut
   }

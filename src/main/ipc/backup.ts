@@ -174,6 +174,17 @@ function convertLegacyBackup(sourcePath: string, targetPath: string): void {
       )
       .all() as LegacySaleItem[]
 
+    const productIds = new Set(products.map((product) => product.id))
+    const missingProducts = new Map<number, { salePrice: number; costPrice: number }>()
+    for (const item of saleItems) {
+      if (!productIds.has(item.product_id) && !missingProducts.has(item.product_id)) {
+        missingProducts.set(item.product_id, {
+          salePrice: item.price,
+          costPrice: item.cost_price
+        })
+      }
+    }
+
     const saleTotals = new Map<number, number>()
     for (const item of saleItems) {
       saleTotals.set(item.sale_id, (saleTotals.get(item.sale_id) ?? 0) + item.quantity * item.price)
@@ -195,6 +206,17 @@ function convertLegacyBackup(sourcePath: string, targetPath: string): void {
           product.cost_price,
           product.sale_price,
           product.stockOnHand
+        )
+      }
+
+      for (const [productId, product] of missingProducts) {
+        insertProduct.run(
+          productId,
+          `สินค้าเก่าที่ไม่มีข้อมูล #${productId}`,
+          'สร้างอัตโนมัติจากประวัติขายในไฟล์สำรองรุ่นเก่า',
+          product.costPrice,
+          product.salePrice,
+          0
         )
       }
 

@@ -120,7 +120,7 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     .receipt {
       box-sizing: border-box;
       width: ${widthMm}mm;
-      padding: 3mm 3mm 5mm;
+      padding: 3mm 3mm 2mm;
       font-family: Sarabun, Tahoma, Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.35;
@@ -213,12 +213,11 @@ function getSeparatorChar(content: string): string {
 }
 
 function getReceiptHeightMicrons(lineCount: number, paperWidthMm: number): number {
-  // 8mm padding (CSS) + 5mm slack for the enlarged total line +
-  // ~5.5mm per line at 12px/1.35 line-height. Keeping this tight
-  // prevents thermal printers from feeding excess blank paper. Very short
-  // 80mm receipts still need a portrait-shaped PDF or Sumatra may rotate them.
-  const measuredHeightMicrons = 13000 + lineCount * 5500
-  const portraitMinimumMicrons = Math.max(80000, (paperWidthMm + 10) * 1000)
+  // 5mm padding (CSS) + 4mm slack for the enlarged total line +
+  // ~5.5mm per line at 12px/1.35 line-height. The tiny portrait minimum keeps
+  // short PDFs from rotating without feeding a long blank tail after the footer.
+  const measuredHeightMicrons = 9000 + lineCount * 5500
+  const portraitMinimumMicrons = (paperWidthMm + 2) * 1000
   return Math.max(measuredHeightMicrons, portraitMinimumMicrons)
 }
 
