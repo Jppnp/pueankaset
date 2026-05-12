@@ -199,6 +199,7 @@ export function StockPage() {
         }}
         product={editProduct}
         stores={stores}
+        defaultStoreId={filterStoreId}
         onSave={handleSave}
       />
 

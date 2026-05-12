@@ -151,12 +151,12 @@ function buildReceiptHtml(lines: ReceiptLine[], config: PrinterConfig): string {
     }
     .center { text-align: center; }
     .header {
-      font-size: ${fontSize + 2}px;
+      font-size: ${fontSize + 6}px;
       line-height: 1.25;
     }
     .bold { font-weight: 700; }
     .total {
-      font-size: ${fontSize + 8}px;
+      font-size: ${fontSize + 6}px;
       margin: 1mm 0;
     }
     .separator {

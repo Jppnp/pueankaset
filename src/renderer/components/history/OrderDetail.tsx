@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { SaleWithItems } from '../../lib/types'
-import { formatBaht, formatThaiDate } from '../../lib/format'
+import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
 import { useRole } from '../../contexts/RoleContext'
 import { RefundDialog } from './RefundDialog'
 import { ExchangeDialog } from './ExchangeDialog'
@@ -138,9 +138,11 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
                 ? 'text-orange-600 font-medium'
                 : sale.payment_type === 'card'
                   ? 'text-blue-600'
+                  : sale.payment_type === 'transfer'
+                    ? 'text-cyan-600'
                   : 'text-gray-700'
             }>
-              {sale.payment_type === 'credit' ? 'เชื่อ' : sale.payment_type === 'card' ? 'บัตร' : 'เงินสด'}
+              {formatPaymentType(sale.payment_type)}
             </span>
           </p>
         )}

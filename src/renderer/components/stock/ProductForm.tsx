@@ -7,6 +7,7 @@ interface ProductFormProps {
   onClose: () => void
   product: Product | null
   stores: Store[]
+  defaultStoreId?: number
   onSave: (data: {
     name: string
     description: string | null
@@ -18,7 +19,14 @@ interface ProductFormProps {
   }) => void
 }
 
-export function ProductForm({ open, onClose, product, stores, onSave }: ProductFormProps) {
+export function ProductForm({
+  open,
+  onClose,
+  product,
+  stores,
+  defaultStoreId,
+  onSave
+}: ProductFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [costPrice, setCostPrice] = useState('')
@@ -33,6 +41,8 @@ export function ProductForm({ open, onClose, product, stores, onSave }: ProductF
   const dupTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
+    if (!open) return
+
     if (product) {
       setName(product.name)
       setDescription(product.description ?? '')
@@ -48,11 +58,14 @@ export function ProductForm({ open, onClose, product, stores, onSave }: ProductF
       setSalePrice('')
       setStock('0')
       setExclude(false)
-      setStoreId(storesRef.current[0]?.id ?? 1)
+      const defaultStore = storesRef.current.some((store) => store.id === defaultStoreId)
+        ? defaultStoreId
+        : storesRef.current[0]?.id
+      setStoreId(defaultStore ?? 1)
     }
     setErrors({})
     setDuplicateWarning(null)
-  }, [product, open])
+  }, [product, open, defaultStoreId])
 
   const checkDuplicate = useCallback(
     (value: string) => {

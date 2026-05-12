@@ -1,13 +1,19 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useImperativeHandle } from 'react'
 
 interface SearchBarProps {
   value: string
   onChange: (value: string) => void
   onClear: () => void
+  onFocusResults?: () => boolean
 }
 
-export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
+export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
+  { value, onChange, onClear, onFocusResults },
+  ref
+) {
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -27,6 +33,11 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' && onFocusResults?.()) {
+            e.preventDefault()
+          }
+        }}
         placeholder="ค้นหาสินค้า... (F2)"
         aria-label="ค้นหาสินค้า"
         className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -56,4 +67,4 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
       )}
     </div>
   )
-}
+})

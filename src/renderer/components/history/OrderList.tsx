@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Sale } from '../../lib/types'
-import { formatBaht, formatThaiDate } from '../../lib/format'
+import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
 
 interface OrderListProps {
   sales: Sale[]
@@ -53,9 +53,11 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
                   <span className={`text-xs px-1.5 py-0.5 rounded ${
                     sale.payment_type === 'credit'
                       ? 'bg-orange-100 text-orange-700'
-                      : 'bg-blue-100 text-blue-700'
+                      : sale.payment_type === 'transfer'
+                        ? 'bg-cyan-100 text-cyan-700'
+                        : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {sale.payment_type === 'credit' ? 'เชื่อ' : 'บัตร'}
+                    {formatPaymentType(sale.payment_type)}
                   </span>
                 )}
               </div>

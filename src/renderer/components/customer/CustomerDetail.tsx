@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { formatBaht, formatThaiDate } from '../../lib/format'
+import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
 import { PaymentDialog } from './PaymentDialog'
 import { CustomerForm } from './CustomerForm'
 import type { Customer, DebtSummary, Sale, CustomerPayment, PaginatedResult } from '../../lib/types'
@@ -171,9 +171,11 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
                         ? 'bg-orange-100 text-orange-700'
                         : sale.payment_type === 'card'
                           ? 'bg-blue-100 text-blue-700'
+                          : sale.payment_type === 'transfer'
+                            ? 'bg-cyan-100 text-cyan-700'
                           : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {sale.payment_type === 'credit' ? 'เชื่อ' : sale.payment_type === 'card' ? 'บัตร' : 'เงินสด'}
+                      {formatPaymentType(sale.payment_type)}
                     </span>
                   </div>
                 </div>

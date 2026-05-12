@@ -68,6 +68,8 @@ export function buildReceipt(
     lines.push({ type: 'text', content: '** เชื่อ **', bold: true })
   } else if (sale.payment_type === 'card') {
     lines.push({ type: 'text', content: 'ชำระบัตร' })
+  } else if (sale.payment_type === 'transfer') {
+    lines.push({ type: 'text', content: 'โอนเงิน' })
   }
 
   if (sale.remark) {

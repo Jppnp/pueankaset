@@ -18,7 +18,7 @@ export function registerSaleHandlers(): void {
         extraAmount?: number
         sellerRole: 'owner' | 'employee'
         customerId?: number
-        paymentType?: 'cash' | 'card' | 'credit'
+        paymentType?: 'cash' | 'card' | 'transfer' | 'credit'
       }
     ) => {
       if (!['owner', 'employee'].includes(input.sellerRole)) {
@@ -26,7 +26,7 @@ export function registerSaleHandlers(): void {
       }
 
       const paymentType = input.paymentType ?? 'cash'
-      if (!['cash', 'card', 'credit'].includes(paymentType)) {
+      if (!['cash', 'card', 'transfer', 'credit'].includes(paymentType)) {
         throw new Error('Invalid payment type')
       }
 

@@ -4,6 +4,12 @@ import { writeFileSync } from 'fs'
 
 // UTF-8 BOM for proper Thai character display in Excel
 const BOM = '\uFEFF'
+const paymentLabels: Record<string, string> = {
+  cash: 'เงินสด',
+  card: 'บัตร',
+  transfer: 'โอนเงิน',
+  credit: 'เชื่อ'
+}
 
 function escapeCsv(val: unknown): string {
   if (val === null || val === undefined) return ''
@@ -92,11 +98,6 @@ export function registerExportHandlers(): void {
         'หมายเหตุ'
       ])
 
-      const paymentLabels: Record<string, string> = {
-        cash: 'เงินสด',
-        card: 'บัตร',
-        credit: 'เชื่อ'
-      }
       const roleLabels: Record<string, string> = {
         owner: 'เจ้าของ',
         employee: 'พนักงาน'
@@ -178,8 +179,6 @@ export function registerExportHandlers(): void {
         'วิธีชำระ',
         'ลูกค้า'
       ])
-
-      const paymentLabels: Record<string, string> = { cash: 'เงินสด', card: 'บัตร', credit: 'เชื่อ' }
 
       const rows = items.map((i) =>
         toCsvRow([

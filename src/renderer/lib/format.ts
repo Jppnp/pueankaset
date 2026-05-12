@@ -8,6 +8,20 @@ export function formatBaht(amount: number): string {
   return `฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+export function formatPaymentType(paymentType: string | null | undefined): string {
+  switch (paymentType) {
+    case 'card':
+      return 'บัตร'
+    case 'transfer':
+      return 'โอนเงิน'
+    case 'credit':
+      return 'เชื่อ'
+    case 'cash':
+    default:
+      return 'เงินสด'
+  }
+}
+
 export function formatThaiDate(dateStr: string): string {
   const parts = getThaiDateParts(dateStr, true)
   return `${parts.day}/${parts.month}/${parts.buddhistYear} ${parts.hour}:${parts.minute}`

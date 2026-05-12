@@ -1,5 +1,5 @@
 export type Role = 'owner' | 'employee'
-export type PaymentType = 'cash' | 'card' | 'credit'
+export type PaymentType = 'cash' | 'card' | 'transfer' | 'credit'
 export type PrinterMode = 'mock' | 'system' | 'network' | 'device'
 export type PrinterTextEncoding = 'tis620' | 'utf8'
 export type UpdateStage =

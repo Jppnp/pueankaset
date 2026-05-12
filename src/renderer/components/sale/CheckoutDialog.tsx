@@ -20,6 +20,7 @@ interface CheckoutDialogProps {
 }
 
 const DEFAULT_CARD_FEE_PERCENT = 5
+const PRINT_RECEIPT_SETTING_KEY = 'sale_print_receipt'
 
 export function CheckoutDialog({
   open,
@@ -41,10 +42,12 @@ export function CheckoutDialog({
   useEffect(() => {
     if (open) {
       setRemark('')
-      setPrint(false)
       setPaymentType('cash')
       setSubmitting(false)
       setEditingFee(false)
+      window.api.getSetting(PRINT_RECEIPT_SETTING_KEY).then((val) => {
+        setPrint(val === 'true')
+      })
       // Load saved card fee percentage
       window.api.getSetting('card_fee_percent').then((val) => {
         const num = val ? parseFloat(val) : DEFAULT_CARD_FEE_PERCENT
@@ -67,6 +70,7 @@ export function CheckoutDialog({
   const paymentOptions: { value: PaymentType; label: string; requiresCustomer: boolean }[] = [
     { value: 'cash', label: 'เงินสด', requiresCustomer: false },
     { value: 'card', label: `บัตร (+${cardFeePercent}%)`, requiresCustomer: false },
+    { value: 'transfer', label: 'โอนเงิน', requiresCustomer: false },
     { value: 'credit', label: 'เชื่อ', requiresCustomer: true }
   ]
 
@@ -78,6 +82,19 @@ export function CheckoutDialog({
     setEditingFee(false)
   }
 
+  const savePrintPreference = async (checked: boolean) => {
+    try {
+      await window.api.setSetting(PRINT_RECEIPT_SETTING_KEY, checked ? 'true' : 'false')
+    } catch {
+      // Preference persistence should never block a sale.
+    }
+  }
+
+  const handlePrintChange = (checked: boolean) => {
+    setPrint(checked)
+    void savePrintPreference(checked)
+  }
+
   const handleConfirm = async () => {
     if (submitting) return
     setSubmitting(true)
@@ -86,6 +103,7 @@ export function CheckoutDialog({
       if (isCard) remarkParts.push('ชำระบัตร')
       if (paymentType === 'credit' && selectedCustomer) remarkParts.push(`เชื่อ - ${selectedCustomer.name}`)
 
+      await savePrintPreference(print)
       await onConfirm({
         remark: remarkParts.filter(Boolean).join(' | ') || undefined,
         print,
@@ -234,7 +252,7 @@ export function CheckoutDialog({
           <input
             type="checkbox"
             checked={print}
-            onChange={(e) => setPrint(e.target.checked)}
+            onChange={(e) => handlePrintChange(e.target.checked)}
             className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
           />
           <span className="text-sm text-gray-700">พิมพ์ใบเสร็จ</span>

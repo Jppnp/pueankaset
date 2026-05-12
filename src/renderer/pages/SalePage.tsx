@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { SearchBar } from '../components/sale/SearchBar'
 import { SearchResults } from '../components/sale/SearchResults'
 import { OrderPanel } from '../components/sale/OrderPanel'
@@ -17,6 +17,8 @@ export function SalePage() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [notification, setNotification] = useState<number | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { results, loading, search, clear } = useProductSearch()
   const sale = useSale()
@@ -30,17 +32,43 @@ export function SalePage() {
     return () => clearTimeout(timer)
   }, [query, search])
 
+  useEffect(() => {
+    setFocusedResultIndex(null)
+  }, [query])
+
+  useEffect(() => {
+    if (focusedResultIndex !== null && focusedResultIndex >= results.length) {
+      setFocusedResultIndex(results.length > 0 ? results.length - 1 : null)
+    }
+  }, [focusedResultIndex, results.length])
+
   const handleSelect = useCallback(
     (product: Product) => {
       sale.addItem(product)
+      setQuery('')
+      clear()
+      setFocusedResultIndex(null)
+      requestAnimationFrame(() => searchInputRef.current?.focus())
     },
-    [sale]
+    [sale, clear]
   )
 
   const handleClearSearch = useCallback(() => {
     setQuery('')
     clear()
+    setFocusedResultIndex(null)
+    requestAnimationFrame(() => searchInputRef.current?.focus())
   }, [clear])
+
+  const handleFocusFirstResult = useCallback(() => {
+    if (!query.trim() || loading || results.length === 0) return false
+    setFocusedResultIndex(0)
+    return true
+  }, [loading, query, results.length])
+
+  const handleFocusSearch = useCallback(() => {
+    requestAnimationFrame(() => searchInputRef.current?.focus())
+  }, [])
 
   const handlePark = useCallback(async () => {
     if (sale.items.length === 0) return
@@ -106,13 +134,22 @@ export function SalePage() {
         {/* Left panel - Search */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border-r">
           <div className="shrink-0 p-4">
-            <SearchBar value={query} onChange={setQuery} onClear={handleClearSearch} />
+            <SearchBar
+              ref={searchInputRef}
+              value={query}
+              onChange={setQuery}
+              onClear={handleClearSearch}
+              onFocusResults={handleFocusFirstResult}
+            />
           </div>
           <SearchResults
             results={results}
             loading={loading}
             onSelect={handleSelect}
             query={query}
+            focusedIndex={focusedResultIndex}
+            onFocusedIndexChange={setFocusedResultIndex}
+            onFocusSearch={handleFocusSearch}
           />
         </div>
 
