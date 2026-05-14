@@ -4,11 +4,11 @@ import { OrderList } from '../components/history/OrderList'
 import { OrderDetail } from '../components/history/OrderDetail'
 import { Pagination } from '../components/shared/Pagination'
 import { useHistory } from '../hooks/useHistory'
-import { formatBaht, todayRange, thisMonthRange, toISODate } from '../lib/format'
+import { formatBaht, todayRange, thisMonthRange, toISODate, yesterdayRange } from '../lib/format'
 import { useRole } from '../contexts/RoleContext'
-import type { SaleWithItems, Store } from '../lib/types'
+import type { Product, SaleWithItems, Store } from '../lib/types'
 
-type FilterPreset = 'today' | 'month' | 'custom'
+type FilterPreset = 'today' | 'yesterday' | 'month' | 'custom'
 
 export function HistoryPage() {
   const [preset, setPreset] = useState<FilterPreset>('today')
@@ -20,18 +20,49 @@ export function HistoryPage() {
   const [stores, setStores] = useState<Store[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined)
   const [pageSize, setPageSize] = useState(20)
+  const [itemSearch, setItemSearch] = useState('')
+  const [itemResults, setItemResults] = useState<Product[]>([])
+  const [itemSearchLoading, setItemSearchLoading] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<Product | null>(null)
 
   const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
+  const selectedItemId = selectedItem?.id
 
   useEffect(() => {
     window.api.getStores().then(setStores)
   }, [])
 
+  useEffect(() => {
+    const query = itemSearch.trim()
+    if (!query) {
+      setItemResults([])
+      setItemSearchLoading(false)
+      return
+    }
+
+    let active = true
+    const timeout = window.setTimeout(async () => {
+      setItemSearchLoading(true)
+      try {
+        const results = await window.api.getProducts(query, selectedStoreId)
+        if (active) setItemResults(results)
+      } finally {
+        if (active) setItemSearchLoading(false)
+      }
+    }, 250)
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+    }
+  }, [itemSearch, selectedStoreId])
+
   const getDateRange = useCallback(() => {
     switch (preset) {
       case 'today':
         return todayRange()
+      case 'yesterday':
+        return yesterdayRange()
       case 'month':
         return thisMonthRange()
       case 'custom':
@@ -43,17 +74,36 @@ export function HistoryPage() {
   }, [preset, customFrom, customTo])
 
   useEffect(() => {
+    setSelectedId(null)
+    setDetail(null)
+  }, [preset, customFrom, customTo, selectedStoreId, selectedItemId])
+
+  useEffect(() => {
     const range = getDateRange()
-    fetchSales({ page: 1, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
-    fetchProfit(range.from, range.to, selectedStoreId)
-  }, [preset, customFrom, customTo, selectedStoreId, pageSize, fetchSales, fetchProfit, getDateRange])
+    fetchSales({
+      page: 1,
+      pageSize,
+      dateFrom: range.from,
+      dateTo: range.to,
+      storeId: selectedStoreId,
+      itemId: selectedItemId
+    })
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId)
+  }, [preset, customFrom, customTo, selectedStoreId, pageSize, selectedItemId, fetchSales, fetchProfit, getDateRange])
 
   const handlePageChange = useCallback(
     (page: number) => {
       const range = getDateRange()
-      fetchSales({ page, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
+      fetchSales({
+        page,
+        pageSize,
+        dateFrom: range.from,
+        dateTo: range.to,
+        storeId: selectedStoreId,
+        itemId: selectedItemId
+      })
     },
-    [fetchSales, getDateRange, selectedStoreId, pageSize]
+    [fetchSales, getDateRange, selectedStoreId, pageSize, selectedItemId]
   )
 
   const handlePageSizeChange = useCallback(
@@ -84,7 +134,7 @@ export function HistoryPage() {
   const handleExport = useCallback(
     async (detailed: boolean) => {
       const range = getDateRange()
-      const params = { dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId }
+      const params = { dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId, itemId: selectedItemId }
       const result = detailed
         ? await window.api.exportSalesDetail(params)
         : await window.api.exportSales(params)
@@ -92,7 +142,7 @@ export function HistoryPage() {
         alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
       }
     },
-    [getDateRange, selectedStoreId]
+    [getDateRange, selectedStoreId, selectedItemId]
   )
 
   const handleRefundSuccess = useCallback(() => {
@@ -101,9 +151,29 @@ export function HistoryPage() {
       handleSelect(selectedId)
     }
     const range = getDateRange()
-    fetchSales({ page: sales.page, pageSize, dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId })
-    fetchProfit(range.from, range.to, selectedStoreId)
-  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId])
+    fetchSales({
+      page: sales.page,
+      pageSize,
+      dateFrom: range.from,
+      dateTo: range.to,
+      storeId: selectedStoreId,
+      itemId: selectedItemId
+    })
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId)
+  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId])
+
+  const handleStoreChange = useCallback((value: string) => {
+    setSelectedStoreId(value ? Number(value) : undefined)
+    setSelectedItem(null)
+    setItemSearch('')
+    setItemResults([])
+  }, [])
+
+  const handleItemSelect = useCallback((product: Product) => {
+    setSelectedItem(product)
+    setItemSearch('')
+    setItemResults([])
+  }, [])
 
   return (
     <div className="flex flex-col h-full">
@@ -135,7 +205,7 @@ export function HistoryPage() {
             <span className="text-sm text-gray-500">ร้านค้า:</span>
             <select
               value={selectedStoreId ?? ''}
-              onChange={(e) => setSelectedStoreId(e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) => handleStoreChange(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">ทุกร้านค้า</option>
@@ -149,9 +219,16 @@ export function HistoryPage() {
           preset={preset}
           customFrom={customFrom}
           customTo={customTo}
+          itemSearch={itemSearch}
+          itemResults={itemResults}
+          itemSearchLoading={itemSearchLoading}
+          selectedItem={selectedItem}
           onPresetChange={setPreset}
           onCustomFromChange={setCustomFrom}
           onCustomToChange={setCustomTo}
+          onItemSearchChange={setItemSearch}
+          onItemSelect={handleItemSelect}
+          onClearItem={() => setSelectedItem(null)}
         />
       </div>
 
@@ -166,6 +243,12 @@ export function HistoryPage() {
                 sales={sales.data}
                 selectedId={selectedId}
                 onSelect={handleSelect}
+                showItemNames={Boolean(selectedItemId)}
+                emptyMessage={
+                  selectedItemId
+                    ? 'ไม่พบรายการขายที่มีสินค้านี้ในช่วงเวลานี้'
+                    : undefined
+                }
               />
             )}
           </div>
@@ -233,8 +316,10 @@ export function HistoryPage() {
               </>
             )}
             <div className="text-xs text-gray-400 ml-auto">
-              {selectedStoreId
-                ? `* แสดงเฉพาะ: ${stores.find((s) => s.id === selectedStoreId)?.name}`
+              {selectedItem
+                ? `* แสดงเฉพาะสินค้า: ${selectedItem.name}`
+                : selectedStoreId
+                  ? `* แสดงเฉพาะ: ${stores.find((s) => s.id === selectedStoreId)?.name}`
                 : isOwner
                   ? '* ไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร'
                   : ''}

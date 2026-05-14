@@ -6,12 +6,14 @@ interface OrderListProps {
   sales: Sale[]
   selectedId: number | null
   onSelect: (id: number) => void
+  showItemNames?: boolean
+  emptyMessage?: string
 }
 
-export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
+export function OrderList({ sales, selectedId, onSelect, showItemNames = false, emptyMessage }: OrderListProps) {
   if (sales.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400">ไม่มีรายการขายในช่วงเวลานี้</div>
+      <div className="text-center py-12 text-gray-400">{emptyMessage ?? 'ไม่มีรายการขายในช่วงเวลานี้'}</div>
     )
   }
 
@@ -65,6 +67,9 @@ export function OrderList({ sales, selectedId, onSelect }: OrderListProps) {
           </div>
           {sale.customer_name && (
             <p className="text-xs text-blue-500 mt-1">{sale.customer_name}</p>
+          )}
+          {showItemNames && sale.item_names && (
+            <p className="text-xs text-gray-500 mt-1 truncate">สินค้า: {sale.item_names}</p>
           )}
           {sale.remark && (
             <p className="text-xs text-gray-400 mt-0.5">{sale.remark}</p>

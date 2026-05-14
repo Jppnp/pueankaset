@@ -11,6 +11,16 @@ const paymentLabels: Record<string, string> = {
   credit: 'เชื่อ'
 }
 
+function toPositiveInteger(value: unknown): number | undefined {
+  const numeric = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : undefined
+
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
+}
+
 function escapeCsv(val: unknown): string {
   if (val === null || val === undefined) return ''
   const str = String(val)
@@ -47,10 +57,11 @@ export function registerExportHandlers(): void {
   // Export sales history
   ipcMain.handle(
     'export:sales',
-    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number }) => {
+    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number | string }) => {
       const db = getDb()
       const conditions: string[] = []
       const whereParams: unknown[] = []
+      const itemId = toPositiveInteger(params.itemId)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -60,11 +71,26 @@ export function registerExportHandlers(): void {
         conditions.push('s.date <= ?')
         whereParams.push(params.dateTo)
       }
+      const itemConditions: string[] = []
+      const itemParams: unknown[] = []
       if (params.storeId) {
+        itemConditions.push('p2.store_id = ?')
+        itemParams.push(params.storeId)
+      }
+      if (itemId) {
+        itemConditions.push('p2.id = ?')
+        itemParams.push(itemId)
+      }
+      if (itemConditions.length > 0) {
         conditions.push(
-          'EXISTS (SELECT 1 FROM sale_items si2 JOIN products p2 ON p2.id = si2.product_id WHERE si2.sale_id = s.id AND p2.store_id = ?)'
+          `EXISTS (
+            SELECT 1
+            FROM sale_items si2
+            JOIN products p2 ON p2.id = si2.product_id
+            WHERE si2.sale_id = s.id AND ${itemConditions.join(' AND ')}
+          )`
         )
-        whereParams.push(params.storeId)
+        whereParams.push(...itemParams)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
@@ -123,10 +149,11 @@ export function registerExportHandlers(): void {
   // Export sales with item details
   ipcMain.handle(
     'export:sales-detail',
-    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number }) => {
+    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number | string }) => {
       const db = getDb()
       const conditions: string[] = []
       const whereParams: unknown[] = []
+      const itemId = toPositiveInteger(params.itemId)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -139,6 +166,10 @@ export function registerExportHandlers(): void {
       if (params.storeId) {
         conditions.push('p.store_id = ?')
         whereParams.push(params.storeId)
+      }
+      if (itemId) {
+        conditions.push('p.id = ?')
+        whereParams.push(itemId)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''

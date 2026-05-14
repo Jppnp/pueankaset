@@ -95,6 +95,13 @@ export function todayRange(): { from: string; to: string } {
   return { from: `${today} 00:00:00`, to: `${today} 23:59:59` }
 }
 
+export function yesterdayRange(): { from: string; to: string } {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const date = toISODate(yesterday)
+  return { from: `${date} 00:00:00`, to: `${date} 23:59:59` }
+}
+
 export function monthRange(year: number, month: number): { from: string; to: string } {
   const lastDay = new Date(year, month + 1, 0).getDate()
   const mm = (month + 1).toString().padStart(2, '0')

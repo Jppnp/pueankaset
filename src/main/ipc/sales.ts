@@ -2,6 +2,16 @@ import { ipcMain } from 'electron'
 import { getDb } from '../database'
 import { insertStockMovement } from './stock-movements'
 
+function toPositiveInteger(value: unknown): number | undefined {
+  const numeric = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : undefined
+
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
+}
+
 export function registerSaleHandlers(): void {
   ipcMain.handle(
     'sales:create',
@@ -95,10 +105,19 @@ export function registerSaleHandlers(): void {
     'sales:list',
     (
       _event,
-      params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; storeId?: number; customerId?: number }
+      params: {
+        page: number
+        pageSize: number
+        dateFrom?: string
+        dateTo?: string
+        storeId?: number
+        customerId?: number
+        itemId?: number | string
+      }
     ) => {
       const db = getDb()
       const { page, pageSize, dateFrom, dateTo, storeId, customerId } = params
+      const itemId = toPositiveInteger(params.itemId)
 
       const conditions: string[] = []
       const whereParams: unknown[] = []
@@ -111,11 +130,26 @@ export function registerSaleHandlers(): void {
         conditions.push('s.date <= ?')
         whereParams.push(dateTo)
       }
+      const itemConditions: string[] = []
+      const itemParams: unknown[] = []
       if (storeId) {
+        itemConditions.push('p.store_id = ?')
+        itemParams.push(storeId)
+      }
+      if (itemId) {
+        itemConditions.push('p.id = ?')
+        itemParams.push(itemId)
+      }
+      if (itemConditions.length > 0) {
         conditions.push(
-          'EXISTS (SELECT 1 FROM sale_items si JOIN products p ON p.id = si.product_id WHERE si.sale_id = s.id AND p.store_id = ?)'
+          `EXISTS (
+            SELECT 1
+            FROM sale_items si
+            JOIN products p ON p.id = si.product_id
+            WHERE si.sale_id = s.id AND ${itemConditions.join(' AND ')}
+          )`
         )
-        whereParams.push(storeId)
+        whereParams.push(...itemParams)
       }
       if (customerId) {
         conditions.push('s.customer_id = ?')
@@ -132,7 +166,13 @@ export function registerSaleHandlers(): void {
         .prepare(
           `SELECT s.*, c.name as customer_name,
             EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund,
-            EXISTS (SELECT 1 FROM exchanges e WHERE e.original_sale_id = s.id) as has_exchange
+            EXISTS (SELECT 1 FROM exchanges e WHERE e.original_sale_id = s.id) as has_exchange,
+            (
+              SELECT GROUP_CONCAT(p.name, ', ')
+              FROM sale_items si
+              JOIN products p ON p.id = si.product_id
+              WHERE si.sale_id = s.id
+            ) as item_names
            FROM sales s
            LEFT JOIN customers c ON c.id = s.customer_id
            ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`
@@ -213,8 +253,9 @@ export function registerSaleHandlers(): void {
 
   ipcMain.handle(
     'sales:profit',
-    (_event, dateFrom?: string, dateTo?: string, storeId?: number) => {
+    (_event, dateFrom?: string, dateTo?: string, storeId?: number, itemIdInput?: number | string) => {
       const db = getDb()
+      const itemId = toPositiveInteger(itemIdInput)
 
       const conditions: string[] = ['p.exclude_from_profit = 0']
       const whereParams: unknown[] = []
@@ -230,6 +271,10 @@ export function registerSaleHandlers(): void {
       if (storeId) {
         conditions.push('p.store_id = ?')
         whereParams.push(storeId)
+      }
+      if (itemId) {
+        conditions.push('p.id = ?')
+        whereParams.push(itemId)
       }
 
       const where = `WHERE ${conditions.join(' AND ')}`
@@ -253,6 +298,10 @@ export function registerSaleHandlers(): void {
       if (dateFrom) { refundConditions.push('s.date >= ?'); refundParams.push(dateFrom) }
       if (dateTo) { refundConditions.push('s.date <= ?'); refundParams.push(dateTo) }
       if (storeId) { refundConditions.push('p.store_id = ?'); refundParams.push(storeId) }
+      if (itemId) {
+        refundConditions.push('p.id = ?')
+        refundParams.push(itemId)
+      }
       const refundWhere = `WHERE ${refundConditions.join(' AND ')}`
 
       const refunded = db

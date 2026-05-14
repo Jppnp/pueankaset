@@ -107,6 +107,7 @@ export interface Sale {
   customer_name?: string
   has_refund?: number
   has_exchange?: number
+  item_names?: string | null
 }
 
 export interface SaleItem {
@@ -331,9 +332,10 @@ export interface ElectronAPI {
     dateTo?: string
     storeId?: number
     customerId?: number
+    itemId?: number
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
-  getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number) => Promise<ProfitSummary>
+  getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) => Promise<ProfitSummary>
 
   // Customers
   getCustomers: (query?: string) => Promise<Customer[]>
@@ -415,8 +417,8 @@ export interface ElectronAPI {
   getDbInfo: () => Promise<{ productCount: number; saleCount: number }>
 
   // Export
-  exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
-  exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportProducts: (storeId?: number) => Promise<{ success: boolean; path?: string; error?: string }>
   exportExpenses: (params: { dateFrom?: string; dateTo?: string }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportCustomers: () => Promise<{ success: boolean; path?: string; error?: string }>

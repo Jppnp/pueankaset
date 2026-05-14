@@ -19,6 +19,7 @@ export function useHistory() {
       dateFrom?: string
       dateTo?: string
       storeId?: number
+      itemId?: number
     }) => {
       setLoading(true)
       setError(null)
@@ -28,7 +29,8 @@ export function useHistory() {
           pageSize: params.pageSize ?? 20,
           dateFrom: params.dateFrom,
           dateTo: params.dateTo,
-          storeId: params.storeId
+          storeId: params.storeId,
+          itemId: params.itemId
         })
         setSales(result)
       } catch (err) {
@@ -40,9 +42,9 @@ export function useHistory() {
     []
   )
 
-  const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string, storeId?: number) => {
+  const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) => {
     try {
-      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId)
+      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId, itemId)
       setProfitSummary(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลกำไร')
