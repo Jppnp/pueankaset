@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
 import { formatBaht } from '../../lib/format'
 import type { SaleWithItems } from '../../lib/types'
+import { useRole } from '../../contexts/RoleContext'
 
 interface Props {
   open: boolean
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function RefundDialog({ open, onClose, sale, onSuccess }: Props) {
+  const { role } = useRole()
   const [quantities, setQuantities] = useState<Record<number, number>>({})
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -47,7 +49,8 @@ export function RefundDialog({ open, onClose, sale, onSuccess }: Props) {
       await window.api.createRefund({
         saleId: sale.id,
         items,
-        reason: reason.trim() || undefined
+        reason: reason.trim() || undefined,
+        createdBy: role ?? 'owner'
       })
       onSuccess()
       onClose()

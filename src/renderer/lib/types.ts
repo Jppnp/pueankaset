@@ -146,6 +146,7 @@ export interface CreateRefundInput {
   saleId: number
   items: { saleItemId: number; quantity: number }[]
   reason?: string
+  createdBy?: Role
 }
 
 export interface CreateRefundResult {

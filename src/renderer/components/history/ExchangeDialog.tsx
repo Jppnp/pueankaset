@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Modal } from '../shared/Modal'
 import { formatBaht } from '../../lib/format'
 import type { SaleWithItems, Product } from '../../lib/types'
+import { useRole } from '../../contexts/RoleContext'
 
 interface Props {
   open: boolean
@@ -16,6 +17,7 @@ interface NewItem {
 }
 
 export function ExchangeDialog({ open, onClose, sale, onSuccess }: Props) {
+  const { role } = useRole()
   const [step, setStep] = useState<1 | 2>(1)
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({})
   const [newItems, setNewItems] = useState<NewItem[]>([])
@@ -107,7 +109,7 @@ export function ExchangeDialog({ open, onClose, sale, onSuccess }: Props) {
           cost_price: ni.product.cost_price
         })),
         reason: reason.trim() || undefined,
-        sellerRole: 'owner'
+        sellerRole: role ?? 'owner'
       })
       onSuccess()
       onClose()

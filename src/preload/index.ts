@@ -91,7 +91,7 @@ const api = {
     ipcRenderer.invoke('stock-movements:adjust-stock', input),
 
   // Refunds
-  createRefund: (input: { saleId: number; items: { saleItemId: number; quantity: number }[]; reason?: string }) =>
+  createRefund: (input: { saleId: number; items: { saleItemId: number; quantity: number }[]; reason?: string; createdBy?: string }) =>
     ipcRenderer.invoke('refunds:create', input),
   getRefundsBySale: (saleId: number) => ipcRenderer.invoke('refunds:list-by-sale', saleId),
 

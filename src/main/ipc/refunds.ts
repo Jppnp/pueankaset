@@ -11,9 +11,14 @@ export function registerRefundHandlers(): void {
         saleId: number
         items: { saleItemId: number; quantity: number }[]
         reason?: string
+        createdBy?: 'owner' | 'employee'
       }
     ) => {
       const db = getDb()
+      const createdBy = input.createdBy ?? 'owner'
+      if (!['owner', 'employee'].includes(createdBy)) {
+        throw new Error('ผู้ทำรายการไม่ถูกต้อง')
+      }
 
       const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(input.saleId) as
         | { id: number; customer_id: number | null; payment_type: string }
@@ -105,7 +110,7 @@ export function registerRefundHandlers(): void {
             reason: `คืนสินค้า (ใบเสร็จ #${input.saleId})`,
             referenceType: 'refund',
             referenceId: refundId,
-            createdBy: 'owner'
+            createdBy
           })
         }
 

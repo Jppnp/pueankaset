@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import type { SaleWithItems } from '../../lib/types'
 import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
-import { useRole } from '../../contexts/RoleContext'
 import { RefundDialog } from './RefundDialog'
 import { ExchangeDialog } from './ExchangeDialog'
 
@@ -13,7 +12,6 @@ interface OrderDetailProps {
 }
 
 export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDetailProps) {
-  const { isOwner } = useRole()
   const [showRefund, setShowRefund] = useState(false)
   const [showExchange, setShowExchange] = useState(false)
 
@@ -49,7 +47,7 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
           <p className="text-sm text-gray-500">{formatThaiDate(sale.date)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {isOwner && hasRefundableItems && (
+          {hasRefundableItems && (
             <>
               <button
                 onClick={() => setShowExchange(true)}
