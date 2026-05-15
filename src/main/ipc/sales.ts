@@ -175,7 +175,7 @@ export function registerSaleHandlers(): void {
             ) as item_names
            FROM sales s
            LEFT JOIN customers c ON c.id = s.customer_id
-           ${where} ORDER BY s.date DESC LIMIT ? OFFSET ?`
+           ${where} ORDER BY s.date DESC, s.id DESC LIMIT ? OFFSET ?`
         )
         .all(...whereParams, pageSize, (page - 1) * pageSize)
 

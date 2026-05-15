@@ -71,7 +71,7 @@ export function OrderPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 px-4 py-3 border-b bg-gray-50">
         <h2 className="font-semibold text-gray-700">รายการสั่งซื้อ ({items.length} รายการ)</h2>
       </div>

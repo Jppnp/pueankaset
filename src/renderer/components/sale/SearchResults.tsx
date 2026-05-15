@@ -30,7 +30,7 @@ export function SearchResults({
 
   if (!query.trim()) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center text-gray-400">
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-gray-400">
         <p>พิมพ์ชื่อสินค้าเพื่อค้นหา</p>
       </div>
     )

@@ -5,12 +5,13 @@ import { OrderPanel } from '../components/sale/OrderPanel'
 import { ParkedOrderBar } from '../components/sale/ParkedOrderBar'
 import { CheckoutDialog } from '../components/sale/CheckoutDialog'
 import { CustomerSelector } from '../components/sale/CustomerSelector'
+import { LatestSaleOrder } from '../components/sale/LatestSaleOrder'
 import { SaleNotification } from '../components/layout/SaleNotification'
 import { useProductSearch } from '../hooks/useProducts'
 import { useSale } from '../hooks/useSale'
 import { useParkedOrders } from '../hooks/useParkedOrders'
 import { useRole } from '../contexts/RoleContext'
-import type { Product, Customer, PaymentType } from '../lib/types'
+import type { Product, Customer, PaymentType, SaleWithItems } from '../lib/types'
 
 export function SalePage() {
   const [query, setQuery] = useState('')
@@ -18,12 +19,38 @@ export function SalePage() {
   const [notification, setNotification] = useState<number | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null)
+  const [latestSale, setLatestSale] = useState<SaleWithItems | null>(null)
+  const [latestSaleLoading, setLatestSaleLoading] = useState(true)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { results, loading, search, clear } = useProductSearch()
   const sale = useSale()
   const parked = useParkedOrders()
   const { role, isOwner } = useRole()
+
+  const fetchLatestSale = useCallback(async () => {
+    setLatestSaleLoading(true)
+    try {
+      const result = await window.api.getSales({ page: 1, pageSize: 1 })
+      const newestSale = result.data[0]
+      if (!newestSale) {
+        setLatestSale(null)
+        return
+      }
+
+      const detail = await window.api.getSaleDetail(newestSale.id)
+      setLatestSale(detail)
+    } catch (err) {
+      console.error('Failed to load latest sale', err)
+      setLatestSale(null)
+    } finally {
+      setLatestSaleLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void fetchLatestSale()
+  }, [fetchLatestSale])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -88,6 +115,13 @@ export function SalePage() {
     [sale, parked]
   )
 
+  const handlePrint = useCallback(async (saleId: number) => {
+    const printResult = await window.api.printReceipt(saleId)
+    if (!printResult.success) {
+      alert(`พิมพ์ไม่สำเร็จ: ${printResult.error}`)
+    }
+  }, [])
+
   const handleCheckout = useCallback(
     async (options: {
       remark?: string
@@ -107,19 +141,24 @@ export function SalePage() {
         setShowCheckout(false)
         setNotification(result.total)
         setSelectedCustomer(null)
+        window.api
+          .getSaleDetail(result.saleId)
+          .then((detail) => {
+            if (detail) setLatestSale(detail)
+          })
+          .catch(() => {
+            void fetchLatestSale()
+          })
 
         if (options.print) {
-          const printResult = await window.api.printReceipt(result.saleId)
-          if (!printResult.success) {
-            alert(`พิมพ์ไม่สำเร็จ: ${printResult.error}`)
-          }
+          await handlePrint(result.saleId)
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
         alert(`เกิดข้อผิดพลาดในการบันทึกการขาย: ${message}`)
       }
     },
-    [sale, role]
+    [sale, role, fetchLatestSale, handlePrint]
   )
 
   return (
@@ -142,6 +181,16 @@ export function SalePage() {
               onFocusResults={handleFocusFirstResult}
             />
           </div>
+          {!query.trim() && (
+            <div className="shrink-0 px-4 pb-3">
+              <LatestSaleOrder
+                sale={latestSale}
+                loading={latestSaleLoading}
+                onPrint={handlePrint}
+                onRefresh={fetchLatestSale}
+              />
+            </div>
+          )}
           <SearchResults
             results={results}
             loading={loading}
