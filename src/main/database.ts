@@ -217,6 +217,19 @@ CREATE INDEX idx_expenses_category ON expenses(category);
 CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
 `
+  },
+  {
+    version: 10,
+    sql: `
+ALTER TABLE customer_payments ADD COLUMN payment_kind TEXT NOT NULL DEFAULT 'payment';
+
+UPDATE customer_payments
+SET payment_kind = 'adjustment'
+WHERE note LIKE 'คืนสินค้า (ใบเสร็จ #%'
+   OR note LIKE 'เปลี่ยนสินค้า - คืน (ใบเสร็จ #%';
+
+CREATE INDEX IF NOT EXISTS idx_customer_payments_date_kind ON customer_payments(date, payment_kind);
+`
   }
 ]
 

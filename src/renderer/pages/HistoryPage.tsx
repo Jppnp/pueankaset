@@ -28,6 +28,10 @@ export function HistoryPage() {
   const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
   const selectedItemId = selectedItem?.id
+  const paidRevenue = profitSummary?.total_paid_revenue ?? profitSummary?.total_revenue ?? 0
+  const creditRevenue = profitSummary?.total_credit_revenue ?? 0
+  const debtPayments = profitSummary?.total_debt_payments ?? 0
+  const receivedAmount = profitSummary?.total_received_amount ?? paidRevenue
 
   useEffect(() => {
     window.api.getStores().then(setStores)
@@ -272,17 +276,33 @@ export function HistoryPage() {
       {/* Profit summary */}
       {profitSummary && (
         <div className="border-t bg-white px-6 py-3">
-          <div className="flex items-center gap-8">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
             <div>
               <span className="text-sm text-gray-500">จำนวนการขาย</span>
               <p className="text-lg font-semibold">{profitSummary.sale_count} รายการ</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500">ยอดขายรวม</span>
+              <span className="text-sm text-gray-500">ยอดรับชำระแล้ว</span>
               <p className="text-lg font-semibold text-blue-600">
-                {formatBaht(profitSummary.total_revenue)}
+                {formatBaht(receivedAmount)}
               </p>
             </div>
+            {debtPayments > 0 && (
+              <div>
+                <span className="text-sm text-gray-500">รับชำระหนี้</span>
+                <p className="text-lg font-semibold text-green-600">
+                  {formatBaht(debtPayments)}
+                </p>
+              </div>
+            )}
+            {creditRevenue > 0 && (
+              <div>
+                <span className="text-sm text-gray-500">ยอดขายเชื่อ</span>
+                <p className="text-lg font-semibold text-orange-600">
+                  {formatBaht(creditRevenue)}
+                </p>
+              </div>
+            )}
             {isOwner && (
               <>
                 <div>

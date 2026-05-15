@@ -187,8 +187,10 @@ export function registerCustomerHandlers(): void {
       if (!customer) throw new Error('ไม่พบลูกค้า')
 
       const result = db
-        .prepare('INSERT INTO customer_payments (customer_id, amount, note) VALUES (?, ?, ?)')
-        .run(input.customerId, input.amount, input.note?.trim() || null)
+        .prepare(
+          'INSERT INTO customer_payments (customer_id, amount, note, payment_kind) VALUES (?, ?, ?, ?)'
+        )
+        .run(input.customerId, input.amount, input.note?.trim() || null, 'payment')
 
       return db
         .prepare('SELECT * FROM customer_payments WHERE id = ?')

@@ -87,6 +87,7 @@ export interface CustomerPayment {
   amount: number
   date: string
   note: string | null
+  payment_kind?: 'payment' | 'adjustment'
   created_at: string
 }
 
@@ -220,6 +221,10 @@ export interface PaginatedResult<T> {
 
 export interface ProfitSummary {
   total_revenue: number
+  total_paid_revenue?: number
+  total_credit_revenue?: number
+  total_debt_payments?: number
+  total_received_amount?: number
   total_cost: number
   total_profit: number
   sale_count: number

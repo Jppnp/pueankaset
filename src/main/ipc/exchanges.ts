@@ -97,10 +97,13 @@ export function registerExchangeHandlers(): void {
 
         // If credit sale, refund side reduces debt
         if (sale.payment_type === 'credit' && sale.customer_id) {
-          db.prepare('INSERT INTO customer_payments (customer_id, amount, note) VALUES (?, ?, ?)').run(
+          db.prepare(
+            'INSERT INTO customer_payments (customer_id, amount, note, payment_kind) VALUES (?, ?, ?, ?)'
+          ).run(
             sale.customer_id,
             returnTotal,
-            `เปลี่ยนสินค้า - คืน (ใบเสร็จ #${input.originalSaleId})`
+            `เปลี่ยนสินค้า - คืน (ใบเสร็จ #${input.originalSaleId})`,
+            'adjustment'
           )
         }
 

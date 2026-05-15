@@ -12,6 +12,10 @@ function toPositiveInteger(value: unknown): number | undefined {
   return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
 export function registerSaleHandlers(): void {
   ipcMain.handle(
     'sales:create',
@@ -284,13 +288,21 @@ export function registerSaleHandlers(): void {
           `SELECT
             COALESCE(SUM(si.price * si.quantity), 0) as total_revenue,
             COALESCE(SUM(si.cost_price * si.quantity), 0) as total_cost,
+            COALESCE(SUM(CASE WHEN s.payment_type != 'credit' THEN si.price * si.quantity ELSE 0 END), 0) as total_paid_revenue,
+            COALESCE(SUM(CASE WHEN s.payment_type = 'credit' THEN si.price * si.quantity ELSE 0 END), 0) as total_credit_revenue,
             COUNT(DISTINCT s.id) as sale_count
            FROM sales s
            JOIN sale_items si ON si.sale_id = s.id
            JOIN products p ON p.id = si.product_id
            ${where}`
         )
-        .get(...whereParams) as { total_revenue: number; total_cost: number; sale_count: number }
+        .get(...whereParams) as {
+          total_revenue: number
+          total_cost: number
+          total_paid_revenue: number
+          total_credit_revenue: number
+          sale_count: number
+        }
 
       // Subtract refunded amounts
       const refundConditions: string[] = ['p.exclude_from_profit = 0']
@@ -308,7 +320,9 @@ export function registerSaleHandlers(): void {
         .prepare(
           `SELECT
             COALESCE(SUM(ri.price * ri.quantity), 0) as refund_revenue,
-            COALESCE(SUM(si.cost_price * ri.quantity), 0) as refund_cost
+            COALESCE(SUM(si.cost_price * ri.quantity), 0) as refund_cost,
+            COALESCE(SUM(CASE WHEN s.payment_type != 'credit' THEN ri.price * ri.quantity ELSE 0 END), 0) as paid_refund_revenue,
+            COALESCE(SUM(CASE WHEN s.payment_type = 'credit' THEN ri.price * ri.quantity ELSE 0 END), 0) as credit_refund_revenue
            FROM refund_items ri
            JOIN refunds r ON r.id = ri.refund_id
            JOIN sale_items si ON si.id = ri.sale_item_id
@@ -316,10 +330,17 @@ export function registerSaleHandlers(): void {
            JOIN products p ON p.id = si.product_id
            ${refundWhere}`
         )
-        .get(...refundParams) as { refund_revenue: number; refund_cost: number }
+        .get(...refundParams) as {
+          refund_revenue: number
+          refund_cost: number
+          paid_refund_revenue: number
+          credit_refund_revenue: number
+        }
 
-      const total_revenue = Math.round((gross.total_revenue - refunded.refund_revenue) * 100) / 100
-      const total_cost = Math.round((gross.total_cost - refunded.refund_cost) * 100) / 100
+      const total_revenue = roundMoney(gross.total_revenue - refunded.refund_revenue)
+      const total_cost = roundMoney(gross.total_cost - refunded.refund_cost)
+      const total_paid_revenue = roundMoney(gross.total_paid_revenue - refunded.paid_refund_revenue)
+      const total_credit_revenue = roundMoney(gross.total_credit_revenue - refunded.credit_refund_revenue)
 
       // Expenses for the date range (business-wide, not store-specific)
       const expenseConditions: string[] = []
@@ -332,15 +353,34 @@ export function registerSaleHandlers(): void {
         .prepare(`SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses ${expenseWhere}`)
         .get(...expenseParams) as { total_expenses: number }
 
-      const totalProfit = Math.round((total_revenue - total_cost) * 100) / 100
+      let total_debt_payments = 0
+      if (!storeId && !itemId) {
+        const paymentConditions: string[] = ["payment_kind = 'payment'"]
+        const paymentParams: unknown[] = []
+        if (dateFrom) { paymentConditions.push('date >= ?'); paymentParams.push(dateFrom) }
+        if (dateTo) { paymentConditions.push('date <= ?'); paymentParams.push(dateTo) }
+        const paymentWhere = `WHERE ${paymentConditions.join(' AND ')}`
+
+        const debtPayments = db
+          .prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM customer_payments ${paymentWhere}`)
+          .get(...paymentParams) as { total: number }
+        total_debt_payments = roundMoney(debtPayments.total)
+      }
+
+      const totalProfit = roundMoney(total_revenue - total_cost)
+      const total_received_amount = roundMoney(total_paid_revenue + total_debt_payments)
 
       return {
         total_revenue,
+        total_paid_revenue,
+        total_credit_revenue,
+        total_debt_payments,
+        total_received_amount,
         total_cost,
         total_profit: totalProfit,
         sale_count: gross.sale_count,
         total_expenses: expenses.total_expenses,
-        net_profit: Math.round((totalProfit - expenses.total_expenses) * 100) / 100
+        net_profit: roundMoney(totalProfit - expenses.total_expenses)
       }
     }
   )

@@ -117,11 +117,12 @@ export function registerRefundHandlers(): void {
         // If credit sale, create customer_payment to reduce debt
         if (sale.payment_type === 'credit' && sale.customer_id) {
           db.prepare(
-            'INSERT INTO customer_payments (customer_id, amount, note) VALUES (?, ?, ?)'
+            'INSERT INTO customer_payments (customer_id, amount, note, payment_kind) VALUES (?, ?, ?, ?)'
           ).run(
             sale.customer_id,
             totalAmount,
-            `คืนสินค้า (ใบเสร็จ #${input.saleId}, คืนสินค้า #${refundId})`
+            `คืนสินค้า (ใบเสร็จ #${input.saleId}, คืนสินค้า #${refundId})`,
+            'adjustment'
           )
         }
 
