@@ -3,8 +3,10 @@ import { getDb } from '../database'
 import { insertStockMovement } from './stock-movements'
 
 type DeliveryStatus = 'none' | 'waiting' | 'shipped'
+type PaymentType = 'cash' | 'card' | 'transfer' | 'credit'
 
 const DELIVERY_STATUSES: DeliveryStatus[] = ['none', 'waiting', 'shipped']
+const PAYMENT_TYPES: PaymentType[] = ['cash', 'card', 'transfer', 'credit']
 
 function toPositiveInteger(value: unknown): number | undefined {
   const numeric = typeof value === 'number'
@@ -24,6 +26,14 @@ function normalizeDeliveryStatus(value: unknown): DeliveryStatus {
   return DELIVERY_STATUSES.includes(value as DeliveryStatus) ? value as DeliveryStatus : 'none'
 }
 
+function toDeliveryStatusFilter(value: unknown): DeliveryStatus | undefined {
+  return DELIVERY_STATUSES.includes(value as DeliveryStatus) ? value as DeliveryStatus : undefined
+}
+
+function toPaymentTypeFilter(value: unknown): PaymentType | undefined {
+  return PAYMENT_TYPES.includes(value as PaymentType) ? value as PaymentType : undefined
+}
+
 export function registerSaleHandlers(): void {
   ipcMain.handle(
     'sales:create',
@@ -40,7 +50,7 @@ export function registerSaleHandlers(): void {
         extraAmount?: number
         sellerRole: 'owner' | 'employee'
         customerId?: number
-        paymentType?: 'cash' | 'card' | 'transfer' | 'credit'
+        paymentType?: PaymentType
         deliveryStatus?: DeliveryStatus
       }
     ) => {
@@ -49,7 +59,7 @@ export function registerSaleHandlers(): void {
       }
 
       const paymentType = input.paymentType ?? 'cash'
-      if (!['cash', 'card', 'transfer', 'credit'].includes(paymentType)) {
+      if (!PAYMENT_TYPES.includes(paymentType)) {
         throw new Error('Invalid payment type')
       }
 
@@ -161,11 +171,15 @@ export function registerSaleHandlers(): void {
         storeId?: number
         customerId?: number
         itemId?: number | string
+        deliveryStatus?: DeliveryStatus
+        paymentType?: PaymentType
       }
     ) => {
       const db = getDb()
       const { page, pageSize, dateFrom, dateTo, storeId, customerId } = params
       const itemId = toPositiveInteger(params.itemId)
+      const deliveryStatus = toDeliveryStatusFilter(params.deliveryStatus)
+      const paymentType = toPaymentTypeFilter(params.paymentType)
 
       const conditions: string[] = []
       const whereParams: unknown[] = []
@@ -202,6 +216,14 @@ export function registerSaleHandlers(): void {
       if (customerId) {
         conditions.push('s.customer_id = ?')
         whereParams.push(customerId)
+      }
+      if (deliveryStatus) {
+        conditions.push('s.delivery_status = ?')
+        whereParams.push(deliveryStatus)
+      }
+      if (paymentType) {
+        conditions.push('s.payment_type = ?')
+        whereParams.push(paymentType)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
@@ -322,9 +344,19 @@ export function registerSaleHandlers(): void {
 
   ipcMain.handle(
     'sales:profit',
-    (_event, dateFrom?: string, dateTo?: string, storeId?: number, itemIdInput?: number | string) => {
+    (
+      _event,
+      dateFrom?: string,
+      dateTo?: string,
+      storeId?: number,
+      itemIdInput?: number | string,
+      deliveryStatusInput?: DeliveryStatus,
+      paymentTypeInput?: PaymentType
+    ) => {
       const db = getDb()
       const itemId = toPositiveInteger(itemIdInput)
+      const deliveryStatus = toDeliveryStatusFilter(deliveryStatusInput)
+      const paymentType = toPaymentTypeFilter(paymentTypeInput)
 
       const conditions: string[] = ['p.exclude_from_profit = 0']
       const whereParams: unknown[] = []
@@ -344,6 +376,14 @@ export function registerSaleHandlers(): void {
       if (itemId) {
         conditions.push('p.id = ?')
         whereParams.push(itemId)
+      }
+      if (deliveryStatus) {
+        conditions.push('s.delivery_status = ?')
+        whereParams.push(deliveryStatus)
+      }
+      if (paymentType) {
+        conditions.push('s.payment_type = ?')
+        whereParams.push(paymentType)
       }
 
       const where = `WHERE ${conditions.join(' AND ')}`
@@ -378,6 +418,14 @@ export function registerSaleHandlers(): void {
       if (itemId) {
         refundConditions.push('p.id = ?')
         refundParams.push(itemId)
+      }
+      if (deliveryStatus) {
+        refundConditions.push('s.delivery_status = ?')
+        refundParams.push(deliveryStatus)
+      }
+      if (paymentType) {
+        refundConditions.push('s.payment_type = ?')
+        refundParams.push(paymentType)
       }
       const refundWhere = `WHERE ${refundConditions.join(' AND ')}`
 
@@ -419,7 +467,7 @@ export function registerSaleHandlers(): void {
         .get(...expenseParams) as { total_expenses: number }
 
       let total_debt_payments = 0
-      if (!storeId && !itemId) {
+      if (!storeId && !itemId && !deliveryStatus && !paymentType) {
         const paymentConditions: string[] = ["payment_kind = 'payment'"]
         const paymentParams: unknown[] = []
         if (dateFrom) { paymentConditions.push('date >= ?'); paymentParams.push(dateFrom) }

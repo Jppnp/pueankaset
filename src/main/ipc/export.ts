@@ -12,6 +12,11 @@ const paymentLabels: Record<string, string> = {
 }
 
 type ProductListStatus = 'notDeleted' | 'deleted' | 'all'
+type DeliveryStatus = 'none' | 'waiting' | 'shipped'
+type PaymentType = 'cash' | 'card' | 'transfer' | 'credit'
+
+const DELIVERY_STATUSES: DeliveryStatus[] = ['none', 'waiting', 'shipped']
+const PAYMENT_TYPES: PaymentType[] = ['cash', 'card', 'transfer', 'credit']
 
 function normalizeProductStatus(status?: ProductListStatus): ProductListStatus {
   return ['notDeleted', 'deleted', 'all'].includes(status ?? '')
@@ -27,6 +32,14 @@ function toPositiveInteger(value: unknown): number | undefined {
       : undefined
 
   return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
+}
+
+function toDeliveryStatusFilter(value: unknown): DeliveryStatus | undefined {
+  return DELIVERY_STATUSES.includes(value as DeliveryStatus) ? value as DeliveryStatus : undefined
+}
+
+function toPaymentTypeFilter(value: unknown): PaymentType | undefined {
+  return PAYMENT_TYPES.includes(value as PaymentType) ? value as PaymentType : undefined
 }
 
 function escapeCsv(val: unknown): string {
@@ -65,11 +78,23 @@ export function registerExportHandlers(): void {
   // Export sales history
   ipcMain.handle(
     'export:sales',
-    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number | string }) => {
+    async (
+      _event,
+      params: {
+        dateFrom?: string
+        dateTo?: string
+        storeId?: number
+        itemId?: number | string
+        deliveryStatus?: DeliveryStatus
+        paymentType?: PaymentType
+      }
+    ) => {
       const db = getDb()
       const conditions: string[] = []
       const whereParams: unknown[] = []
       const itemId = toPositiveInteger(params.itemId)
+      const deliveryStatus = toDeliveryStatusFilter(params.deliveryStatus)
+      const paymentType = toPaymentTypeFilter(params.paymentType)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -99,6 +124,14 @@ export function registerExportHandlers(): void {
           )`
         )
         whereParams.push(...itemParams)
+      }
+      if (deliveryStatus) {
+        conditions.push('s.delivery_status = ?')
+        whereParams.push(deliveryStatus)
+      }
+      if (paymentType) {
+        conditions.push('s.payment_type = ?')
+        whereParams.push(paymentType)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
@@ -176,11 +209,23 @@ export function registerExportHandlers(): void {
   // Export sales with item details
   ipcMain.handle(
     'export:sales-detail',
-    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number | string }) => {
+    async (
+      _event,
+      params: {
+        dateFrom?: string
+        dateTo?: string
+        storeId?: number
+        itemId?: number | string
+        deliveryStatus?: DeliveryStatus
+        paymentType?: PaymentType
+      }
+    ) => {
       const db = getDb()
       const conditions: string[] = []
       const whereParams: unknown[] = []
       const itemId = toPositiveInteger(params.itemId)
+      const deliveryStatus = toDeliveryStatusFilter(params.deliveryStatus)
+      const paymentType = toPaymentTypeFilter(params.paymentType)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -197,6 +242,14 @@ export function registerExportHandlers(): void {
       if (itemId) {
         conditions.push('p.id = ?')
         whereParams.push(itemId)
+      }
+      if (deliveryStatus) {
+        conditions.push('s.delivery_status = ?')
+        whereParams.push(deliveryStatus)
+      }
+      if (paymentType) {
+        conditions.push('s.payment_type = ?')
+        whereParams.push(paymentType)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''

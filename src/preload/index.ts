@@ -34,12 +34,21 @@ const api = {
     storeId?: number
     customerId?: number
     itemId?: number
+    deliveryStatus?: string
+    paymentType?: string
   }) => ipcRenderer.invoke('sales:list', params),
   getSaleDetail: (id: number) => ipcRenderer.invoke('sales:detail', id),
   updateSaleDeliveryStatus: (id: number, deliveryStatus: string) =>
     ipcRenderer.invoke('sales:update-delivery-status', id, deliveryStatus),
-  getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) =>
-    ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId, itemId),
+  getProfitSummary: (
+    dateFrom?: string,
+    dateTo?: string,
+    storeId?: number,
+    itemId?: number,
+    deliveryStatus?: string,
+    paymentType?: string
+  ) =>
+    ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentType),
 
   // Stores
   getStores: () => ipcRenderer.invoke('stores:list'),
@@ -130,9 +139,23 @@ const api = {
     ipcRenderer.invoke('dashboard:revenue-trend', dateFrom, dateTo, storeId),
 
   // Export
-  exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) =>
+  exportSales: (params: {
+    dateFrom?: string
+    dateTo?: string
+    storeId?: number
+    itemId?: number
+    deliveryStatus?: string
+    paymentType?: string
+  }) =>
     ipcRenderer.invoke('export:sales', params),
-  exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) =>
+  exportSalesDetail: (params: {
+    dateFrom?: string
+    dateTo?: string
+    storeId?: number
+    itemId?: number
+    deliveryStatus?: string
+    paymentType?: string
+  }) =>
     ipcRenderer.invoke('export:sales-detail', params),
   exportProducts: (storeId?: number, options?: Record<string, unknown>) =>
     ipcRenderer.invoke('export:products', storeId, options),

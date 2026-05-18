@@ -23,6 +23,10 @@ let mainWindow: BrowserWindow | null = null
 
 const APP_ID = 'com.pueankaset.pos'
 const APP_NAME = 'เพื่อนเกษตร POS'
+const UI_ZOOM_MULTIPLIER_SETTING_KEY = 'ui_zoom_multiplier'
+const MIN_UI_ZOOM_MULTIPLIER = 0.5
+const MAX_UI_ZOOM_MULTIPLIER = 3
+const ZOOM_STEP = 1.2
 
 app.setName(APP_NAME)
 if (process.platform === 'win32') {
@@ -31,7 +35,9 @@ if (process.platform === 'win32') {
 
 function createWindow(): void {
   const scaleFactor = screen.getPrimaryDisplay().scaleFactor || 1
-  const zoomFactor = 1 / scaleFactor
+  const baseZoomFactor = 1 / scaleFactor
+  const initialZoomMultiplier = getSavedUiZoomMultiplier()
+  const startupZoomFactor = getZoomFactor(baseZoomFactor, initialZoomMultiplier)
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -43,15 +49,12 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      zoomFactor
+      zoomFactor: startupZoomFactor
     }
   })
   mainWindow.maximize()
 
-  // Re-apply on every load so the UI fits regardless of OS display scaling.
-  mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow?.webContents.setZoomFactor(zoomFactor)
-  })
+  const zoomPersistence = registerZoomPersistence(mainWindow, baseZoomFactor, initialZoomMultiplier)
 
   // Load the renderer
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -68,12 +71,113 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     if (!confirmCloseWithPendingDeliveries(mainWindow)) {
       event.preventDefault()
+      return
     }
+    zoomPersistence.saveCurrent()
   })
 
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function registerZoomPersistence(
+  window: BrowserWindow,
+  baseZoomFactor: number,
+  initialZoomMultiplier: number
+): { saveCurrent: () => void } {
+  let uiZoomMultiplier = clampZoomMultiplier(initialZoomMultiplier)
+
+  const applyZoom = (): void => {
+    if (window.isDestroyed()) return
+    window.webContents.setZoomFactor(getZoomFactor(baseZoomFactor, uiZoomMultiplier))
+  }
+
+  const saveZoom = (): void => {
+    saveUiZoomMultiplier(uiZoomMultiplier)
+  }
+
+  const setZoomMultiplier = (nextMultiplier: number): void => {
+    uiZoomMultiplier = clampZoomMultiplier(nextMultiplier)
+    applyZoom()
+    saveZoom()
+  }
+
+  const zoomIn = (): void => setZoomMultiplier(uiZoomMultiplier * ZOOM_STEP)
+  const zoomOut = (): void => setZoomMultiplier(uiZoomMultiplier / ZOOM_STEP)
+  const resetZoom = (): void => setZoomMultiplier(1)
+
+  // Re-apply on every load so the UI fits display scaling plus the user's saved zoom.
+  window.webContents.on('did-finish-load', applyZoom)
+
+  window.webContents.on('zoom-changed', (event, zoomDirection) => {
+    event.preventDefault()
+    if (zoomDirection === 'in') {
+      zoomIn()
+    } else {
+      zoomOut()
+    }
+  })
+
+  window.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    if (!(input.control || input.meta) || input.alt) return
+
+    if (input.key === '+' || input.key === '=') {
+      event.preventDefault()
+      zoomIn()
+    } else if (input.key === '-' || input.key === '_') {
+      event.preventDefault()
+      zoomOut()
+    } else if (input.key === '0') {
+      event.preventDefault()
+      resetZoom()
+    }
+  })
+
+  return {
+    saveCurrent: () => {
+      if (window.isDestroyed()) return
+      const currentZoomFactor = window.webContents.getZoomFactor()
+      if (!Number.isFinite(currentZoomFactor) || currentZoomFactor <= 0) return
+
+      uiZoomMultiplier = clampZoomMultiplier(currentZoomFactor / baseZoomFactor)
+      saveZoom()
+    }
+  }
+}
+
+function getZoomFactor(baseZoomFactor: number, uiZoomMultiplier: number): number {
+  return baseZoomFactor * clampZoomMultiplier(uiZoomMultiplier)
+}
+
+function clampZoomMultiplier(value: number): number {
+  if (!Number.isFinite(value)) return 1
+  return Math.min(Math.max(value, MIN_UI_ZOOM_MULTIPLIER), MAX_UI_ZOOM_MULTIPLIER)
+}
+
+function getSavedUiZoomMultiplier(): number {
+  try {
+    const row = getDb()
+      .prepare('SELECT value FROM app_settings WHERE key = ?')
+      .get(UI_ZOOM_MULTIPLIER_SETTING_KEY) as { value: string } | undefined
+    const parsed = row ? Number(row.value) : 1
+    return clampZoomMultiplier(parsed)
+  } catch (err) {
+    console.error('Failed to load saved UI zoom', err)
+    return 1
+  }
+}
+
+function saveUiZoomMultiplier(multiplier: number): void {
+  try {
+    const value = clampZoomMultiplier(multiplier).toFixed(4)
+    getDb()
+      .prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?')
+      .run(UI_ZOOM_MULTIPLIER_SETTING_KEY, value, value)
+  } catch (err) {
+    console.error('Failed to save UI zoom', err)
+  }
 }
 
 function confirmCloseWithPendingDeliveries(window: BrowserWindow | null): boolean {

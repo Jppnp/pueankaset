@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { Sale, SaleWithItems, PaginatedResult, ProfitSummary } from '../lib/types'
+import type { DeliveryStatus, PaymentType, Sale, SaleWithItems, PaginatedResult, ProfitSummary } from '../lib/types'
 
 export function useHistory() {
   const [sales, setSales] = useState<PaginatedResult<Sale>>({
@@ -20,6 +20,8 @@ export function useHistory() {
       dateTo?: string
       storeId?: number
       itemId?: number
+      deliveryStatus?: DeliveryStatus
+      paymentType?: PaymentType
     }) => {
       setLoading(true)
       setError(null)
@@ -30,7 +32,9 @@ export function useHistory() {
           dateFrom: params.dateFrom,
           dateTo: params.dateTo,
           storeId: params.storeId,
-          itemId: params.itemId
+          itemId: params.itemId,
+          deliveryStatus: params.deliveryStatus,
+          paymentType: params.paymentType
         })
         setSales(result)
       } catch (err) {
@@ -42,9 +46,16 @@ export function useHistory() {
     []
   )
 
-  const fetchProfit = useCallback(async (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) => {
+  const fetchProfit = useCallback(async (
+    dateFrom?: string,
+    dateTo?: string,
+    storeId?: number,
+    itemId?: number,
+    deliveryStatus?: DeliveryStatus,
+    paymentType?: PaymentType
+  ) => {
     try {
-      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId, itemId)
+      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentType)
       setProfitSummary(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลกำไร')

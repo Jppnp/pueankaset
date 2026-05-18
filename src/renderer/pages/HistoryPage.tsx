@@ -4,11 +4,13 @@ import { OrderList } from '../components/history/OrderList'
 import { OrderDetail } from '../components/history/OrderDetail'
 import { Pagination } from '../components/shared/Pagination'
 import { useHistory } from '../hooks/useHistory'
-import { formatBaht, todayRange, thisMonthRange, toISODate, yesterdayRange } from '../lib/format'
+import { formatBaht, formatDeliveryStatus, formatPaymentType, todayRange, thisMonthRange, toISODate, yesterdayRange } from '../lib/format'
 import { useRole } from '../contexts/RoleContext'
-import type { Product, SaleWithItems, Store } from '../lib/types'
+import type { DeliveryStatus, PaymentType, Product, SaleWithItems, Store } from '../lib/types'
 
 type FilterPreset = 'today' | 'yesterday' | 'month' | 'custom'
+type DeliveryFilter = DeliveryStatus | 'all'
+type PaymentFilter = PaymentType | 'all'
 
 export function HistoryPage() {
   const [preset, setPreset] = useState<FilterPreset>('today')
@@ -24,14 +26,25 @@ export function HistoryPage() {
   const [itemResults, setItemResults] = useState<Product[]>([])
   const [itemSearchLoading, setItemSearchLoading] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Product | null>(null)
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all')
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
 
   const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
   const selectedItemId = selectedItem?.id
+  const selectedDeliveryStatus = deliveryFilter === 'all' ? undefined : deliveryFilter
+  const selectedPaymentType = paymentFilter === 'all' ? undefined : paymentFilter
   const paidRevenue = profitSummary?.total_paid_revenue ?? profitSummary?.total_revenue ?? 0
   const creditRevenue = profitSummary?.total_credit_revenue ?? 0
   const debtPayments = profitSummary?.total_debt_payments ?? 0
   const receivedAmount = profitSummary?.total_received_amount ?? paidRevenue
+  const selectedStore = selectedStoreId ? stores.find((s) => s.id === selectedStoreId) : undefined
+  const activeFilterNote = [
+    selectedStore ? selectedStore.name : null,
+    selectedItem ? `สินค้า: ${selectedItem.name}` : null,
+    selectedDeliveryStatus ? formatDeliveryStatus(selectedDeliveryStatus) : null,
+    selectedPaymentType ? `วิธีชำระ: ${formatPaymentType(selectedPaymentType)}` : null
+  ].filter(Boolean).join(' / ')
 
   useEffect(() => {
     window.api.getStores().then(setStores)
@@ -80,7 +93,7 @@ export function HistoryPage() {
   useEffect(() => {
     setSelectedId(null)
     setDetail(null)
-  }, [preset, customFrom, customTo, selectedStoreId, selectedItemId])
+  }, [preset, customFrom, customTo, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType])
 
   useEffect(() => {
     const range = getDateRange()
@@ -90,10 +103,12 @@ export function HistoryPage() {
       dateFrom: range.from,
       dateTo: range.to,
       storeId: selectedStoreId,
-      itemId: selectedItemId
+      itemId: selectedItemId,
+      deliveryStatus: selectedDeliveryStatus,
+      paymentType: selectedPaymentType
     })
-    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId)
-  }, [preset, customFrom, customTo, selectedStoreId, pageSize, selectedItemId, fetchSales, fetchProfit, getDateRange])
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType)
+  }, [preset, customFrom, customTo, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentType, fetchSales, fetchProfit, getDateRange])
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -104,10 +119,12 @@ export function HistoryPage() {
         dateFrom: range.from,
         dateTo: range.to,
         storeId: selectedStoreId,
-        itemId: selectedItemId
+        itemId: selectedItemId,
+        deliveryStatus: selectedDeliveryStatus,
+        paymentType: selectedPaymentType
       })
     },
-    [fetchSales, getDateRange, selectedStoreId, pageSize, selectedItemId]
+    [fetchSales, getDateRange, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentType]
   )
 
   const handlePageSizeChange = useCallback(
@@ -138,7 +155,14 @@ export function HistoryPage() {
   const handleExport = useCallback(
     async (detailed: boolean) => {
       const range = getDateRange()
-      const params = { dateFrom: range.from, dateTo: range.to, storeId: selectedStoreId, itemId: selectedItemId }
+      const params = {
+        dateFrom: range.from,
+        dateTo: range.to,
+        storeId: selectedStoreId,
+        itemId: selectedItemId,
+        deliveryStatus: selectedDeliveryStatus,
+        paymentType: selectedPaymentType
+      }
       const result = detailed
         ? await window.api.exportSalesDetail(params)
         : await window.api.exportSales(params)
@@ -146,7 +170,7 @@ export function HistoryPage() {
         alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
       }
     },
-    [getDateRange, selectedStoreId, selectedItemId]
+    [getDateRange, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType]
   )
 
   const handleRefundSuccess = useCallback(() => {
@@ -161,10 +185,12 @@ export function HistoryPage() {
       dateFrom: range.from,
       dateTo: range.to,
       storeId: selectedStoreId,
-      itemId: selectedItemId
+      itemId: selectedItemId,
+      deliveryStatus: selectedDeliveryStatus,
+      paymentType: selectedPaymentType
     })
-    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId)
-  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId])
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType)
+  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType])
 
   const handleStoreChange = useCallback((value: string) => {
     setSelectedStoreId(value ? Number(value) : undefined)
@@ -184,7 +210,7 @@ export function HistoryPage() {
       <div className="px-6 py-4 border-b bg-white">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-gray-900">ประวัติการขาย</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <div className="relative group">
               <button className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 ส่งออก Excel
@@ -216,6 +242,29 @@ export function HistoryPage() {
               {stores.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
+            </select>
+            <span className="text-sm text-gray-500">จัดส่ง:</span>
+            <select
+              value={deliveryFilter}
+              onChange={(e) => setDeliveryFilter(e.target.value as DeliveryFilter)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="all">ทั้งหมด</option>
+              <option value="waiting">รอจัดส่ง</option>
+              <option value="shipped">จัดส่งแล้ว</option>
+              <option value="none">รับหน้าร้าน</option>
+            </select>
+            <span className="text-sm text-gray-500">ชำระ:</span>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="all">ทั้งหมด</option>
+              <option value="cash">เงินสด</option>
+              <option value="card">บัตร</option>
+              <option value="transfer">โอนเงิน</option>
+              <option value="credit">เชื่อ</option>
             </select>
           </div>
         </div>
@@ -249,7 +298,13 @@ export function HistoryPage() {
                 onSelect={handleSelect}
                 showItemNames={Boolean(selectedItemId)}
                 emptyMessage={
-                  selectedItemId
+                  selectedDeliveryStatus === 'waiting'
+                    ? 'ไม่พบรายการรอจัดส่งในช่วงเวลานี้'
+                    : selectedDeliveryStatus === 'shipped'
+                      ? 'ไม่พบรายการจัดส่งแล้วในช่วงเวลานี้'
+                      : selectedPaymentType
+                        ? `ไม่พบรายการชำระด้วย${formatPaymentType(selectedPaymentType)}ในช่วงเวลานี้`
+                      : selectedItemId
                     ? 'ไม่พบรายการขายที่มีสินค้านี้ในช่วงเวลานี้'
                     : undefined
                 }
@@ -342,10 +397,8 @@ export function HistoryPage() {
               </>
             )}
             <div className="text-xs text-gray-400 ml-auto">
-              {selectedItem
-                ? `* แสดงเฉพาะสินค้า: ${selectedItem.name}`
-                : selectedStoreId
-                  ? `* แสดงเฉพาะ: ${stores.find((s) => s.id === selectedStoreId)?.name}`
+              {activeFilterNote
+                ? `* แสดงเฉพาะ: ${activeFilterNote}`
                 : isOwner
                   ? '* ไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร'
                   : ''}
