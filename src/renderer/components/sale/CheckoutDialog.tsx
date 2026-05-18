@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
 import { formatBaht, calcCardFee } from '../../lib/format'
 import { useRole } from '../../contexts/RoleContext'
-import type { OrderItem, Customer, PaymentType } from '../../lib/types'
+import type { OrderItem, Customer, PaymentType, DeliveryStatus } from '../../lib/types'
 
 interface CheckoutDialogProps {
   open: boolean
@@ -10,12 +10,14 @@ interface CheckoutDialogProps {
   items: OrderItem[]
   total: number
   selectedCustomer: Customer | null
+  deliveryPending: boolean
   onConfirm: (options: {
     remark?: string
     print: boolean
     cardFee?: number
     paymentType: PaymentType
     customerId?: number
+    deliveryStatus: DeliveryStatus
   }) => void
 }
 
@@ -28,6 +30,7 @@ export function CheckoutDialog({
   items,
   total,
   selectedCustomer,
+  deliveryPending,
   onConfirm
 }: CheckoutDialogProps) {
   const [remark, setRemark] = useState('')
@@ -109,7 +112,8 @@ export function CheckoutDialog({
         print,
         cardFee: isCard ? cardFee : undefined,
         paymentType,
-        customerId: selectedCustomer?.id
+        customerId: selectedCustomer?.id,
+        deliveryStatus: deliveryPending ? 'waiting' : 'none'
       })
     } finally {
       setSubmitting(false)
@@ -152,6 +156,12 @@ export function CheckoutDialog({
               <div className="flex justify-between items-center text-sm text-orange-600">
                 <span>ค่าธรรมเนียมบัตร ({cardFeePercent}%)</span>
                 <span>+{formatBaht(cardFee)}</span>
+              </div>
+            )}
+            {deliveryPending && (
+              <div className="flex justify-between items-center text-sm text-amber-700">
+                <span>สถานะจัดส่ง</span>
+                <span>รอจัดส่ง</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-1 border-t">

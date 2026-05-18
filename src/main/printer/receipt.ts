@@ -6,8 +6,16 @@ export interface ReceiptLine {
   bold?: boolean
 }
 
-const SHOP_NAME = 'ก.เพื่อนเกษตร'
-const SHOP_PHONE = '085-733-1118'
+export interface ReceiptHeader {
+  shopName: string
+  shopPhone: string
+}
+
+export const DEFAULT_RECEIPT_HEADER: ReceiptHeader = {
+  shopName: 'ก.เพื่อนเกษตร',
+  shopPhone: '085-733-1118'
+}
+
 const DOTTED_SEPARATOR = '................................'
 
 export function buildReceipt(
@@ -18,18 +26,19 @@ export function buildReceipt(
     remark: string | null
     customer_name?: string
     payment_type?: string
+    delivery_status?: string
   },
   items: {
     product_name: string
     description?: string | null
     quantity: number
     price: number
-  }[]
+  }[],
+  header: ReceiptHeader = DEFAULT_RECEIPT_HEADER
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
 
-  lines.push({ type: 'header', content: SHOP_NAME, bold: true })
-  lines.push({ type: 'header', content: SHOP_PHONE, bold: true })
+  addReceiptHeader(lines, header)
   lines.push({ type: 'subheader', content: 'ใบเสร็จรับเงิน' })
   lines.push({ type: 'subheader', content: `รายการที่ #${sale.id}`, bold: true })
   lines.push({ type: 'subheader', content: formatThaiDateTime(sale.date) })
@@ -72,8 +81,119 @@ export function buildReceipt(
     lines.push({ type: 'text', content: 'โอนเงิน' })
   }
 
+  if (sale.delivery_status === 'waiting') {
+    lines.push({ type: 'text', content: 'จัดส่ง: รอจัดส่ง', bold: true })
+  } else if (sale.delivery_status === 'shipped') {
+    lines.push({ type: 'text', content: 'จัดส่ง: จัดส่งแล้ว' })
+  }
+
   if (sale.remark) {
     lines.push({ type: 'text', content: `หมายเหตุ: ${sale.remark}` })
+  }
+
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
+  lines.push({ type: 'footer', content: 'ขอบคุณที่อุดหนุน' })
+
+  return lines
+}
+
+export interface ExchangeReceiptItem {
+  product_name: string
+  description?: string | null
+  quantity: number
+  price: number
+}
+
+export function buildExchangeReceipt(
+  exchange: {
+    id: number
+    original_sale_id: number
+    new_sale_id: number
+    date: string
+    price_difference: number
+    reason: string | null
+  },
+  sale: {
+    customer_name?: string | null
+    payment_type?: string | null
+  },
+  returnItems: ExchangeReceiptItem[],
+  newItems: ExchangeReceiptItem[],
+  header: ReceiptHeader = DEFAULT_RECEIPT_HEADER
+): ReceiptLine[] {
+  const lines: ReceiptLine[] = []
+  const returnTotal = returnItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const newTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const difference = newTotal - returnTotal
+
+  addReceiptHeader(lines, header)
+  lines.push({ type: 'subheader', content: 'ใบเปลี่ยนสินค้า', bold: true })
+  lines.push({ type: 'subheader', content: `รายการเปลี่ยน #${exchange.id}` })
+  lines.push({ type: 'subheader', content: `อ้างอิงใบเสร็จ #${exchange.original_sale_id}` })
+  lines.push({ type: 'subheader', content: formatThaiDateTime(exchange.date) })
+  if (sale.customer_name) {
+    lines.push({ type: 'text', content: `ลูกค้า: ${sale.customer_name}` })
+  }
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
+
+  lines.push({ type: 'text', content: 'สินค้าที่คืน', bold: true })
+  for (const item of returnItems) {
+    const lineTotal = item.price * item.quantity
+    lines.push({
+      type: 'item-row',
+      content: `${item.product_name} x${item.quantity}`,
+      rightContent: `-${formatBaht(lineTotal)}`
+    })
+    const description = item.description?.trim()
+    if (description) {
+      lines.push({ type: 'description', content: description })
+    }
+  }
+  lines.push({ type: 'item-row', content: 'รวมสินค้าคืน', rightContent: `-${formatBaht(returnTotal)}` })
+
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
+  lines.push({ type: 'text', content: 'สินค้าใหม่', bold: true })
+  for (const item of newItems) {
+    const lineTotal = item.price * item.quantity
+    lines.push({
+      type: 'item-row',
+      content: `${item.product_name} x${item.quantity}`,
+      rightContent: formatBaht(lineTotal)
+    })
+    const description = item.description?.trim()
+    if (description) {
+      lines.push({ type: 'description', content: description })
+    }
+  }
+  lines.push({ type: 'item-row', content: 'รวมสินค้าใหม่', rightContent: formatBaht(newTotal) })
+
+  lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
+  if (difference > 0) {
+    lines.push({
+      type: 'total',
+      content: `ลูกค้าจ่ายเพิ่ม: ${formatBaht(difference)}`,
+      bold: true
+    })
+  } else if (difference < 0) {
+    lines.push({
+      type: 'total',
+      content: `คืนเงินลูกค้า: ${formatBaht(Math.abs(difference))}`,
+      bold: true
+    })
+  } else {
+    lines.push({ type: 'total', content: 'ไม่มีส่วนต่าง', bold: true })
+  }
+
+  if (sale.payment_type === 'credit') {
+    lines.push({ type: 'text', content: '** ปรับยอดเชื่อ **', bold: true })
+  } else if (sale.payment_type === 'card') {
+    lines.push({ type: 'text', content: 'ชำระบัตร' })
+  } else if (sale.payment_type === 'transfer') {
+    lines.push({ type: 'text', content: 'โอนเงิน' })
+  }
+
+  if (exchange.reason) {
+    lines.push({ type: 'text', content: `เหตุผล: ${exchange.reason}` })
   }
 
   lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
@@ -99,12 +219,12 @@ export interface DebtReceiptSale {
 export function buildDebtReceipt(
   customer: { name: string; phone?: string | null },
   sales: DebtReceiptSale[],
-  outstandingTotal: number
+  outstandingTotal: number,
+  header: ReceiptHeader = DEFAULT_RECEIPT_HEADER
 ): ReceiptLine[] {
   const lines: ReceiptLine[] = []
 
-  lines.push({ type: 'header', content: SHOP_NAME, bold: true })
-  lines.push({ type: 'header', content: SHOP_PHONE, bold: true })
+  addReceiptHeader(lines, header)
   lines.push({ type: 'header', content: 'ใบสรุปยอดค้างชำระ', bold: true })
   lines.push({ type: 'header', content: formatThaiDateTime(new Date().toISOString()) })
   lines.push({ type: 'separator', content: DOTTED_SEPARATOR })
@@ -172,6 +292,16 @@ export function buildDebtReceipt(
   lines.push({ type: 'footer', content: 'ขอบคุณที่อุดหนุน' })
 
   return lines
+}
+
+function addReceiptHeader(lines: ReceiptLine[], header: ReceiptHeader): void {
+  const shopName = header.shopName.trim() || DEFAULT_RECEIPT_HEADER.shopName
+  const shopPhone = header.shopPhone.trim()
+
+  lines.push({ type: 'header', content: shopName, bold: true })
+  if (shopPhone) {
+    lines.push({ type: 'header', content: shopPhone, bold: true })
+  }
 }
 
 function formatThaiDate(dateStr: string): string {

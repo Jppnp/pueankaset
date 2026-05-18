@@ -130,14 +130,17 @@ export function registerExchangeHandlers(): void {
         const decrementStock = db.prepare(
           "UPDATE products SET stock_on_hand = stock_on_hand - ?, updated_at = datetime('now') WHERE id = ?"
         )
-        const checkStock = db.prepare('SELECT stock_on_hand, name FROM products WHERE id = ?')
+        const checkStock = db.prepare('SELECT stock_on_hand, name, is_deleted FROM products WHERE id = ?')
 
         for (const item of input.newItems) {
           const product = checkStock.get(item.product_id) as
-            | { stock_on_hand: number; name: string }
+            | { stock_on_hand: number; name: string; is_deleted: number }
             | undefined
           if (!product) throw new Error(`ไม่พบสินค้า (id: ${item.product_id})`)
-          if (product.stock_on_hand < item.quantity) {
+          if (product.is_deleted) {
+            throw new Error(`สินค้า "${product.name}" ไม่พร้อมขาย`)
+          }
+          if (product.stock_on_hand >= 0 && product.stock_on_hand < item.quantity) {
             throw new Error(
               `สินค้า "${product.name}" มีสต็อกไม่เพียงพอ (คงเหลือ ${product.stock_on_hand} ต้องการ ${item.quantity})`
             )

@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
   // Products
-  getProducts: (query?: string, storeId?: number) => ipcRenderer.invoke('products:list', query, storeId),
+  getProducts: (query?: string, storeId?: number, options?: Record<string, unknown>) =>
+    ipcRenderer.invoke('products:list', query, storeId, options),
   getProduct: (id: number) => ipcRenderer.invoke('products:get', id),
   createProduct: (product: Record<string, unknown>) =>
     ipcRenderer.invoke('products:create', product),
@@ -11,9 +12,19 @@ const api = {
   searchProducts: (query: string) => ipcRenderer.invoke('products:search', query),
   checkDuplicateProduct: (name: string, excludeId?: number) =>
     ipcRenderer.invoke('products:check-duplicate', name, excludeId),
+  deleteProduct: (id: number) => ipcRenderer.invoke('products:delete', id),
+  restoreProduct: (id: number) => ipcRenderer.invoke('products:restore', id),
 
   // Sales
-  createSale: (input: { items: unknown[]; remark?: string; extraAmount?: number; sellerRole: string }) =>
+  createSale: (input: {
+    items: unknown[]
+    remark?: string
+    extraAmount?: number
+    sellerRole: string
+    customerId?: number
+    paymentType?: string
+    deliveryStatus?: string
+  }) =>
     ipcRenderer.invoke('sales:create', input),
   getSales: (params: {
     page: number
@@ -21,9 +32,12 @@ const api = {
     dateFrom?: string
     dateTo?: string
     storeId?: number
+    customerId?: number
     itemId?: number
   }) => ipcRenderer.invoke('sales:list', params),
   getSaleDetail: (id: number) => ipcRenderer.invoke('sales:detail', id),
+  updateSaleDeliveryStatus: (id: number, deliveryStatus: string) =>
+    ipcRenderer.invoke('sales:update-delivery-status', id, deliveryStatus),
   getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) =>
     ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId, itemId),
 
@@ -120,7 +134,8 @@ const api = {
     ipcRenderer.invoke('export:sales', params),
   exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) =>
     ipcRenderer.invoke('export:sales-detail', params),
-  exportProducts: (storeId?: number) => ipcRenderer.invoke('export:products', storeId),
+  exportProducts: (storeId?: number, options?: Record<string, unknown>) =>
+    ipcRenderer.invoke('export:products', storeId, options),
   exportExpenses: (params: { dateFrom?: string; dateTo?: string }) =>
     ipcRenderer.invoke('export:expenses', params),
   exportCustomers: () => ipcRenderer.invoke('export:customers'),

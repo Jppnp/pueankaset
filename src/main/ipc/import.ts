@@ -60,7 +60,7 @@ export function registerImportHandlers(): void {
   ipcMain.handle('import:db-info', () => {
     const db = getDb()
     const productCount = (
-      db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }
+      db.prepare('SELECT COUNT(*) as count FROM products WHERE is_deleted = 0').get() as { count: number }
     ).count
     const saleCount = (
       db.prepare('SELECT COUNT(*) as count FROM sales').get() as { count: number }

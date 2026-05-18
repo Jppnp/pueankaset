@@ -22,6 +22,18 @@ export function formatPaymentType(paymentType: string | null | undefined): strin
   }
 }
 
+export function formatDeliveryStatus(deliveryStatus: string | null | undefined): string {
+  switch (deliveryStatus) {
+    case 'waiting':
+      return 'รอจัดส่ง'
+    case 'shipped':
+      return 'จัดส่งแล้ว'
+    case 'none':
+    default:
+      return 'รับหน้าร้าน'
+  }
+}
+
 export function formatThaiDate(dateStr: string): string {
   const parts = getThaiDateParts(dateStr, true)
   return `${parts.day}/${parts.month}/${parts.buddhistYear} ${parts.hour}:${parts.minute}`

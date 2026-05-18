@@ -1,23 +1,30 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Product } from '../lib/types'
+import type { Product, ProductListOptions } from '../lib/types'
 
-export function useProducts(initialQuery?: string, initialStoreId?: number) {
+export function useProducts(
+  initialQuery?: string,
+  initialStoreId?: number,
+  initialOptions?: ProductListOptions
+) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
 
-  const fetchProducts = useCallback(async (query?: string, storeId?: number) => {
+  const fetchProducts = useCallback(
+    async (query?: string, storeId?: number, options?: ProductListOptions) => {
     setLoading(true)
     try {
-      const result = await window.api.getProducts(query, storeId)
+      const result = await window.api.getProducts(query, storeId, options)
       setProducts(result)
     } finally {
       setLoading(false)
     }
-  }, [])
+    },
+    []
+  )
 
   useEffect(() => {
-    fetchProducts(initialQuery, initialStoreId)
-  }, [fetchProducts, initialQuery, initialStoreId])
+    fetchProducts(initialQuery, initialStoreId, initialOptions)
+  }, [fetchProducts, initialQuery, initialStoreId, initialOptions])
 
   return { products, loading, refetch: fetchProducts }
 }

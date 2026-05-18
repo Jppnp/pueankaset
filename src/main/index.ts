@@ -1,6 +1,6 @@
-import { app, BrowserWindow, nativeImage, screen } from 'electron'
+import { app, BrowserWindow, dialog, nativeImage, screen } from 'electron'
 import { join } from 'path'
-import { initDatabase, closeDatabase } from './database'
+import { initDatabase, closeDatabase, getDb } from './database'
 import { registerProductHandlers } from './ipc/products'
 import { registerSaleHandlers } from './ipc/sales'
 import { registerParkedOrderHandlers } from './ipc/parked-orders'
@@ -65,9 +65,49 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools()
   }
 
+  mainWindow.on('close', (event) => {
+    if (!confirmCloseWithPendingDeliveries(mainWindow)) {
+      event.preventDefault()
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function confirmCloseWithPendingDeliveries(window: BrowserWindow | null): boolean {
+  const pendingCount = getPendingDeliveryCount()
+  if (pendingCount === 0) return true
+
+  const options: Electron.MessageBoxSyncOptions = {
+    type: 'warning',
+    title: 'ยังมีรายการรอจัดส่ง',
+    message: `ยังมีรายการรอจัดส่ง ${pendingCount} รายการ`,
+    detail: 'ต้องการปิดโปรแกรมตอนนี้หรือกลับไปตรวจสอบรายการก่อน?',
+    buttons: ['กลับไปตรวจสอบ', 'ปิดโปรแกรม'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  }
+
+  const choice = window
+    ? dialog.showMessageBoxSync(window, options)
+    : dialog.showMessageBoxSync(options)
+
+  return choice === 1
+}
+
+function getPendingDeliveryCount(): number {
+  try {
+    const result = getDb()
+      .prepare("SELECT COUNT(*) as total FROM sales WHERE delivery_status = 'waiting'")
+      .get() as { total: number }
+    return result.total
+  } catch (err) {
+    console.error('Failed to check pending deliveries before close', err)
+    return 0
+  }
 }
 
 function getAppIconPath(): string {

@@ -1,11 +1,37 @@
 import { ipcMain } from 'electron'
+import type Database from 'better-sqlite3'
 import { getDb } from '../database'
 
+type ProductListStatus = 'notDeleted' | 'deleted' | 'all'
+
+interface ProductListOptions {
+  status?: ProductListStatus
+}
+
+function normalizeStatus(status?: ProductListStatus): ProductListStatus {
+  return ['notDeleted', 'deleted', 'all'].includes(status ?? '')
+    ? status!
+    : 'notDeleted'
+}
+
+function getProductById(db: Database.Database, id: number): unknown {
+  return db.prepare('SELECT * FROM products WHERE id = ?').get(id) ?? null
+}
+
 export function registerProductHandlers(): void {
-  ipcMain.handle('products:list', (_event, query?: string, storeId?: number) => {
+  ipcMain.handle(
+    'products:list',
+    (_event, query?: string, storeId?: number, options?: ProductListOptions) => {
     const db = getDb()
     const conditions: string[] = []
     const params: unknown[] = []
+    const status = normalizeStatus(options?.status)
+
+    if (status === 'deleted') {
+      conditions.push('is_deleted = 1')
+    } else if (status === 'notDeleted') {
+      conditions.push('is_deleted = 0')
+    }
 
     if (storeId) {
       conditions.push('store_id = ?')
@@ -18,12 +44,15 @@ export function registerProductHandlers(): void {
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    return db.prepare(`SELECT * FROM products ${where} ORDER BY name`).all(...params)
-  })
+    return db
+      .prepare(`SELECT * FROM products ${where} ORDER BY is_deleted ASC, name`)
+      .all(...params)
+    }
+  )
 
   ipcMain.handle('products:get', (_event, id: number) => {
     const db = getDb()
-    return db.prepare('SELECT * FROM products WHERE id = ?').get(id) ?? null
+    return getProductById(db, id)
   })
 
   ipcMain.handle(
@@ -107,9 +136,13 @@ export function registerProductHandlers(): void {
     const trimmed = name?.trim()
     if (!trimmed) return null
     if (excludeId) {
-      return db.prepare('SELECT id, name FROM products WHERE name = ? AND id != ?').get(trimmed, excludeId) ?? null
+      return db
+        .prepare('SELECT id, name FROM products WHERE name = ? AND id != ? AND is_deleted = 0')
+        .get(trimmed, excludeId) ?? null
     }
-    return db.prepare('SELECT id, name FROM products WHERE name = ?').get(trimmed) ?? null
+    return db
+      .prepare('SELECT id, name FROM products WHERE name = ? AND is_deleted = 0')
+      .get(trimmed) ?? null
   })
 
   ipcMain.handle('products:search', (_event, query: string) => {
@@ -118,8 +151,43 @@ export function registerProductHandlers(): void {
     const term = `%${query.trim()}%`
     return db
       .prepare(
-        `SELECT * FROM products WHERE name LIKE ? OR description LIKE ? ORDER BY name LIMIT 50`
+        `SELECT *
+         FROM products
+         WHERE is_deleted = 0
+           AND (name LIKE ? OR description LIKE ?)
+         ORDER BY name
+         LIMIT 50`
       )
       .all(term, term)
+  })
+
+  ipcMain.handle('products:delete', (_event, id: number) => {
+    const db = getDb()
+    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
+    if (!product) throw new Error('ไม่พบสินค้า')
+
+    db.prepare(
+      `UPDATE products
+       SET is_deleted = 1,
+           updated_at = datetime('now')
+       WHERE id = ?`
+    ).run(id)
+
+    return { success: true }
+  })
+
+  ipcMain.handle('products:restore', (_event, id: number) => {
+    const db = getDb()
+    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
+    if (!product) throw new Error('ไม่พบสินค้า')
+
+    db.prepare(
+      `UPDATE products
+       SET is_deleted = 0,
+           updated_at = datetime('now')
+       WHERE id = ?`
+    ).run(id)
+
+    return getProductById(db, id)
   })
 }

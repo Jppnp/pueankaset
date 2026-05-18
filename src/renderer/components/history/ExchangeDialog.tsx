@@ -273,13 +273,9 @@ export function ExchangeDialog({ open, onClose, sale, onSuccess }: Props) {
                           <input
                             type="number"
                             min={1}
-                            max={ni.product.stock_on_hand}
                             value={ni.quantity}
                             onChange={(e) => {
-                              const val = Math.min(
-                                Math.max(1, parseInt(e.target.value) || 1),
-                                ni.product.stock_on_hand
-                              )
+                              const val = Math.max(1, parseInt(e.target.value) || 1)
                               handleUpdateNewItemQty(ni.product.id, val)
                             }}
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:outline-none focus:ring-2 focus:ring-green-500"

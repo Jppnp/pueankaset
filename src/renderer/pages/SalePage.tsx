@@ -11,13 +11,14 @@ import { useProductSearch } from '../hooks/useProducts'
 import { useSale } from '../hooks/useSale'
 import { useParkedOrders } from '../hooks/useParkedOrders'
 import { useRole } from '../contexts/RoleContext'
-import type { Product, Customer, PaymentType, SaleWithItems } from '../lib/types'
+import type { Product, Customer, PaymentType, SaleWithItems, DeliveryStatus } from '../lib/types'
 
 export function SalePage() {
   const [query, setQuery] = useState('')
   const [showCheckout, setShowCheckout] = useState(false)
   const [notification, setNotification] = useState<number | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [deliveryPending, setDeliveryPending] = useState(false)
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null)
   const [latestSale, setLatestSale] = useState<SaleWithItems | null>(null)
   const [latestSaleLoading, setLatestSaleLoading] = useState(true)
@@ -51,6 +52,12 @@ export function SalePage() {
   useEffect(() => {
     void fetchLatestSale()
   }, [fetchLatestSale])
+
+  useEffect(() => {
+    if (sale.items.length === 0) {
+      setDeliveryPending(false)
+    }
+  }, [sale.items.length])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,6 +108,7 @@ export function SalePage() {
     if (sale.items.length === 0) return
     await parked.parkOrder(null, sale.items)
     sale.clearItems()
+    setDeliveryPending(false)
   }, [sale, parked])
 
   const handleLoadParked = useCallback(
@@ -111,6 +119,7 @@ export function SalePage() {
       }
       const items = await parked.loadParkedOrder(id)
       sale.loadItems(items)
+      setDeliveryPending(false)
     },
     [sale, parked]
   )
@@ -129,6 +138,7 @@ export function SalePage() {
       cardFee?: number
       paymentType: PaymentType
       customerId?: number
+      deliveryStatus: DeliveryStatus
     }) => {
       try {
         const result = await sale.checkout(
@@ -136,11 +146,13 @@ export function SalePage() {
           options.cardFee,
           role ?? 'owner',
           options.customerId,
-          options.paymentType
+          options.paymentType,
+          options.deliveryStatus
         )
         setShowCheckout(false)
         setNotification(result.total)
         setSelectedCustomer(null)
+        setDeliveryPending(false)
         window.api
           .getSaleDetail(result.saleId)
           .then((detail) => {
@@ -219,6 +231,8 @@ export function SalePage() {
             onRemove={sale.removeItem}
             onCheckout={() => setShowCheckout(true)}
             onPark={handlePark}
+            deliveryPending={deliveryPending}
+            onDeliveryPendingChange={setDeliveryPending}
           />
         </div>
       </div>
@@ -229,6 +243,7 @@ export function SalePage() {
         items={sale.items}
         total={sale.total}
         selectedCustomer={selectedCustomer}
+        deliveryPending={deliveryPending}
         onConfirm={handleCheckout}
       />
 

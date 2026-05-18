@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import type { SaleWithItems } from '../../lib/types'
-import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
+import type { DeliveryStatus, SaleWithItems } from '../../lib/types'
+import { formatBaht, formatDeliveryStatus, formatPaymentType, formatThaiDate } from '../../lib/format'
 import { RefundDialog } from './RefundDialog'
 import { ExchangeDialog } from './ExchangeDialog'
 
@@ -9,11 +9,13 @@ interface OrderDetailProps {
   loading: boolean
   onPrint: (saleId: number) => void
   onRefundSuccess?: () => void
+  onDeliveryStatusChange?: () => void
 }
 
-export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDetailProps) {
+export function OrderDetail({ sale, loading, onPrint, onRefundSuccess, onDeliveryStatusChange }: OrderDetailProps) {
   const [showRefund, setShowRefund] = useState(false)
   const [showExchange, setShowExchange] = useState(false)
+  const [updatingDelivery, setUpdatingDelivery] = useState(false)
 
   if (loading) {
     return (
@@ -38,6 +40,25 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
   const handleRefundSuccess = () => {
     onRefundSuccess?.()
   }
+
+  const handleDeliveryStatusChange = async (deliveryStatus: DeliveryStatus) => {
+    if (!sale || updatingDelivery) return
+
+    setUpdatingDelivery(true)
+    try {
+      await window.api.updateSaleDeliveryStatus(sale.id, deliveryStatus)
+      onDeliveryStatusChange?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
+      alert(`อัปเดตสถานะจัดส่งไม่สำเร็จ: ${message}`)
+    } finally {
+      setUpdatingDelivery(false)
+    }
+  }
+
+  const deliveryStatus = sale.delivery_status ?? 'none'
+  const historyTotal = sale.items_total ?? sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - historyTotal)
 
   return (
     <div className="p-4 space-y-4">
@@ -69,6 +90,60 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
           >
             พิมพ์ใบเสร็จ
           </button>
+        </div>
+      </div>
+
+      <div className={`rounded-lg border px-4 py-3 ${
+        deliveryStatus === 'waiting'
+          ? 'border-amber-200 bg-amber-50'
+          : deliveryStatus === 'shipped'
+            ? 'border-green-200 bg-green-50'
+            : 'border-gray-200 bg-gray-50'
+      }`}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className={`text-sm font-semibold ${
+              deliveryStatus === 'waiting'
+                ? 'text-amber-800'
+                : deliveryStatus === 'shipped'
+                  ? 'text-green-800'
+                  : 'text-gray-700'
+            }`}>
+              {formatDeliveryStatus(deliveryStatus)}
+            </p>
+            <p className="text-xs text-gray-500">สถานะการจัดส่งของใบเสร็จนี้</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {deliveryStatus === 'waiting' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryStatusChange('none')}
+                  disabled={updatingDelivery}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                >
+                  ยกเลิกรอจัดส่ง
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryStatusChange('shipped')}
+                  disabled={updatingDelivery}
+                  className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                >
+                  จัดส่งแล้ว
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleDeliveryStatusChange('waiting')}
+                disabled={updatingDelivery}
+                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+              >
+                ตั้งเป็นรอจัดส่ง
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -108,12 +183,32 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-2">
+            {cardFee > 0 && (
+              <>
+                <tr className="border-t-2">
+                  <td colSpan={3} className="px-4 pt-3 pb-1 text-right text-sm text-gray-500">
+                    ค่าธรรมเนียมบัตร (ไม่รวมยอดประวัติ)
+                  </td>
+                  <td className="px-4 pt-3 pb-1 text-right text-sm text-gray-500">
+                    {formatBaht(cardFee)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="px-4 py-1 text-right text-sm text-gray-500">
+                    ยอดชำระผ่านบัตร
+                  </td>
+                  <td className="px-4 py-1 text-right text-sm text-gray-500">
+                    {formatBaht(sale.total_amount)}
+                  </td>
+                </tr>
+              </>
+            )}
+            <tr className={cardFee > 0 ? 'border-t' : 'border-t-2'}>
               <td colSpan={3} className="px-4 py-3 text-right font-semibold">
-                รวมทั้งสิ้น
+                รวมสินค้า
               </td>
               <td className="px-4 py-3 text-right text-lg font-bold text-green-700">
-                {formatBaht(sale.total_amount)}
+                {formatBaht(historyTotal)}
               </td>
             </tr>
           </tfoot>
@@ -186,19 +281,28 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess }: OrderDe
           <h4 className="text-sm font-semibold text-blue-700 mb-2">ประวัติการเปลี่ยนสินค้า</h4>
           <div className="space-y-3">
             {sale.exchanges.map((ex) => (
-              <div key={ex.id} className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500">{formatThaiDate(ex.date)}</span>
-                  <span className={`text-sm font-semibold ${
-                    ex.price_difference > 0 ? 'text-red-600' : ex.price_difference < 0 ? 'text-green-600' : 'text-gray-600'
-                  }`}>
-                    {ex.price_difference > 0
-                      ? `ลูกค้าจ่ายเพิ่ม ${formatBaht(ex.price_difference)}`
-                      : ex.price_difference < 0
-                        ? `คืนเงิน ${formatBaht(Math.abs(ex.price_difference))}`
-                        : 'ไม่มีส่วนต่าง'}
-                  </span>
-                </div>
+	              <div key={ex.id} className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+	                <div className="flex items-center justify-between mb-2">
+	                  <span className="text-xs text-gray-500">{formatThaiDate(ex.date)}</span>
+	                  <div className="flex items-center gap-2">
+	                    <span className={`text-sm font-semibold ${
+	                      ex.price_difference > 0 ? 'text-red-600' : ex.price_difference < 0 ? 'text-green-600' : 'text-gray-600'
+	                    }`}>
+	                      {ex.price_difference > 0
+	                        ? `ลูกค้าจ่ายเพิ่ม ${formatBaht(ex.price_difference)}`
+	                        : ex.price_difference < 0
+	                          ? `คืนเงิน ${formatBaht(Math.abs(ex.price_difference))}`
+	                          : 'ไม่มีส่วนต่าง'}
+	                    </span>
+	                    <button
+	                      type="button"
+	                      onClick={() => onPrint(ex.new_sale_id)}
+	                      className="rounded-md bg-white px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200 transition-colors hover:bg-blue-100"
+	                    >
+	                      พิมพ์ใบเปลี่ยน
+	                    </button>
+	                  </div>
+	                </div>
                 {ex.reason && (
                   <p className="text-xs text-gray-500 mb-2">เหตุผล: {ex.reason}</p>
                 )}

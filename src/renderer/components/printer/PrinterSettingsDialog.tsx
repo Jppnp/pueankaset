@@ -28,9 +28,26 @@ const modeOptions: { value: PrinterMode; label: string }[] = [
   { value: 'mock', label: 'ทดสอบใน Console' }
 ]
 
+const paperOptions: { value: 58 | 80; label: string }[] = [
+  { value: 58, label: '58 มม.' },
+  { value: 80, label: '80 มม.' }
+]
+
+const RECEIPT_SHOP_NAME_KEY = 'receipt_shop_name'
+const RECEIPT_SHOP_PHONE_KEY = 'receipt_shop_phone'
+const DEFAULT_RECEIPT_SHOP_NAME = 'ก.เพื่อนเกษตร'
+const DEFAULT_RECEIPT_SHOP_PHONE = '085-733-1118'
+
+const selectClass =
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500'
+const inputClass =
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 caret-green-700 shadow-sm selection:bg-green-100 selection:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500'
+
 export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogProps) {
   const [config, setConfig] = useState<PrinterConfig>(FALLBACK_CONFIG)
   const [printers, setPrinters] = useState<PrinterDevice[]>([])
+  const [shopName, setShopName] = useState(DEFAULT_RECEIPT_SHOP_NAME)
+  const [shopPhone, setShopPhone] = useState(DEFAULT_RECEIPT_SHOP_PHONE)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -45,11 +62,18 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
     setLoading(true)
     setMessage(null)
 
-    Promise.all([window.api.getPrinterConfig(), window.api.listPrinters()])
-      .then(([nextConfig, nextPrinters]) => {
+    Promise.all([
+      window.api.getPrinterConfig(),
+      window.api.listPrinters(),
+      window.api.getSetting(RECEIPT_SHOP_NAME_KEY),
+      window.api.getSetting(RECEIPT_SHOP_PHONE_KEY)
+    ])
+      .then(([nextConfig, nextPrinters, savedShopName, savedShopPhone]) => {
         if (cancelled) return
         setConfig(nextConfig)
         setPrinters(nextPrinters)
+        setShopName(savedShopName ?? DEFAULT_RECEIPT_SHOP_NAME)
+        setShopPhone(savedShopPhone ?? DEFAULT_RECEIPT_SHOP_PHONE)
       })
       .catch((err) => {
         if (cancelled) return
@@ -113,12 +137,24 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
   }
 
   const handleSave = async () => {
+    const trimmedShopName = shopName.trim()
+    if (!trimmedShopName) {
+      setMessage({ type: 'error', text: 'กรุณาระบุชื่อร้านบนใบเสร็จ' })
+      return
+    }
+
     setSaving(true)
     setMessage(null)
     try {
       const result = await window.api.savePrinterConfig(config)
       if (result.success && result.config) {
+        await Promise.all([
+          window.api.setSetting(RECEIPT_SHOP_NAME_KEY, trimmedShopName),
+          window.api.setSetting(RECEIPT_SHOP_PHONE_KEY, shopPhone.trim())
+        ])
         setConfig(result.config)
+        setShopName(trimmedShopName)
+        setShopPhone(shopPhone.trim())
         setMessage({ type: 'success', text: 'บันทึกการตั้งค่าแล้ว' })
       } else {
         setMessage({ type: 'error', text: result.error ?? 'บันทึกไม่สำเร็จ' })
@@ -146,34 +182,74 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
           </div>
         )}
 
+        <div className="grid grid-cols-[1fr_180px] gap-3">
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-1">ชื่อร้านบนใบเสร็จ</span>
+            <input
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              className={inputClass}
+              placeholder={DEFAULT_RECEIPT_SHOP_NAME}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</span>
+            <input
+              value={shopPhone}
+              onChange={(e) => setShopPhone(e.target.value)}
+              className={inputClass}
+              placeholder={DEFAULT_RECEIPT_SHOP_PHONE}
+            />
+          </label>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="block text-sm font-medium text-gray-700 mb-1">โหมด</span>
-            <select
-              value={config.mode}
-              onChange={(e) => updateConfig({ mode: e.target.value as PrinterMode })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              disabled={loading}
-            >
-              {modeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {modeOptions.map((option) => {
+                const selected = config.mode === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateConfig({ mode: option.value })}
+                    disabled={loading}
+                    className={`min-h-10 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-green-600 bg-green-50 text-green-800 ring-2 ring-green-500'
+                        : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
           </label>
 
           <label className="block">
             <span className="block text-sm font-medium text-gray-700 mb-1">ขนาดกระดาษ</span>
-            <select
-              value={config.paperWidthMm}
-              onChange={(e) => updateConfig({ paperWidthMm: Number(e.target.value) as 58 | 80 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              disabled={loading}
-            >
-              <option value={58}>58 มม.</option>
-              <option value={80}>80 มม.</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {paperOptions.map((option) => {
+                const selected = config.paperWidthMm === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateConfig({ paperWidthMm: option.value })}
+                    disabled={loading}
+                    className={`min-h-10 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-green-600 bg-green-50 text-green-800 ring-2 ring-green-500'
+                        : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
           </label>
         </div>
 
@@ -187,14 +263,14 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
                 <select
                   value={config.printerName}
                   onChange={(e) => updateConfig({ printerName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={selectClass}
                   disabled={loading}
                 >
-                  <option value="">
+                  <option value="" className="bg-white text-gray-900">
                     ค่าเริ่มต้น{defaultPrinter ? ` (${defaultPrinter.displayName})` : ''}
                   </option>
                   {printers.map((printer) => (
-                    <option key={printer.name} value={printer.name}>
+                    <option key={printer.name} value={printer.name} className="bg-white text-gray-900">
                       {printer.displayName}
                       {printer.isDefault ? ' *' : ''}
                     </option>
@@ -221,7 +297,7 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
               <input
                 value={config.host}
                 onChange={(e) => updateConfig({ host: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputClass}
                 placeholder="192.168.1.50"
               />
             </label>
@@ -233,7 +309,7 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
                 max={65535}
                 value={config.port}
                 onChange={(e) => updateConfig({ port: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputClass}
               />
             </label>
           </div>
@@ -245,7 +321,7 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
             <input
               value={config.devicePath}
               onChange={(e) => updateConfig({ devicePath: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className={inputClass}
               placeholder="/dev/usb/lp0 หรือ \\\\localhost\\Printer"
             />
           </label>
@@ -261,7 +337,7 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
                 max={80}
                 value={config.charactersPerLine}
                 onChange={(e) => updateConfig({ charactersPerLine: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputClass}
               />
             </label>
             <label className="block">
@@ -271,10 +347,10 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
                 onChange={(e) =>
                   updateConfig({ encoding: e.target.value as PrinterTextEncoding })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={selectClass}
               >
-                <option value="tis620">TIS-620</option>
-                <option value="utf8">UTF-8</option>
+                <option value="tis620" className="bg-white text-gray-900">TIS-620</option>
+                <option value="utf8" className="bg-white text-gray-900">UTF-8</option>
               </select>
             </label>
             <label className="block">
@@ -285,7 +361,7 @@ export function PrinterSettingsDialog({ open, onClose }: PrinterSettingsDialogPr
                 max={255}
                 value={config.codePage}
                 onChange={(e) => updateConfig({ codePage: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputClass}
               />
             </label>
           </div>

@@ -1,6 +1,12 @@
 import { BrowserWindow, ipcMain, app } from 'electron'
+import type Database from 'better-sqlite3'
 import { getDb } from '../database'
-import { buildReceipt, buildDebtReceipt } from '../printer/receipt'
+import {
+  buildReceipt,
+  buildDebtReceipt,
+  buildExchangeReceipt,
+  DEFAULT_RECEIPT_HEADER
+} from '../printer/receipt'
 import { printMock } from '../printer/mock'
 import { printEscPos } from '../printer/escpos'
 import { printSystemReceipt } from '../printer/system'
@@ -12,7 +18,10 @@ import {
   type PrinterConfig,
   type PrinterMode
 } from '../printer/config'
-import type { ReceiptLine } from '../printer/receipt'
+import type { ReceiptHeader, ReceiptLine } from '../printer/receipt'
+
+const RECEIPT_SHOP_NAME_KEY = 'receipt_shop_name'
+const RECEIPT_SHOP_PHONE_KEY = 'receipt_shop_phone'
 
 export function registerPrinterHandlers(): void {
   ipcMain.handle('printer:get-config', () => {
@@ -56,7 +65,7 @@ export function registerPrinterHandlers(): void {
           : normalizePrinterConfig(input, getDefaultPrinterMode())
 
       validatePrinterConfig(config)
-      await printReceiptLines(buildTestReceipt(), config)
+      await printReceiptLines(buildTestReceipt(getReceiptHeader(db)), config)
 
       return { success: true }
     } catch (err) {
@@ -153,7 +162,7 @@ export function registerPrinterHandlers(): void {
       const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
       const outstanding = Math.max(0, totalCredit - totalPaid)
 
-      const receipt = buildDebtReceipt(customer, remainingSales, outstanding)
+      const receipt = buildDebtReceipt(customer, remainingSales, outstanding, getReceiptHeader(db))
       const config = getPrinterConfig(db, getDefaultPrinterMode())
       validatePrinterConfig(config)
 
@@ -191,6 +200,81 @@ export function registerPrinterHandlers(): void {
         return { success: false, error: 'ไม่พบรายการขาย' }
       }
 
+      const receiptHeader = getReceiptHeader(db)
+
+      const exchange = db
+        .prepare(
+          `SELECT *
+           FROM exchanges
+           WHERE new_sale_id = ?`
+        )
+        .get(saleId) as
+        | {
+            id: number
+            original_sale_id: number
+            refund_id: number
+            new_sale_id: number
+            price_difference: number
+            date: string
+            reason: string | null
+          }
+        | undefined
+
+      if (exchange) {
+        const returnItems = db
+          .prepare(
+            `SELECT ri.quantity, ri.price, p.name as product_name, p.description as product_description
+             FROM refund_items ri
+             JOIN sale_items si ON si.id = ri.sale_item_id
+             JOIN products p ON p.id = si.product_id
+             WHERE ri.refund_id = ?`
+          )
+          .all(exchange.refund_id) as {
+          product_name: string
+          product_description: string | null
+          quantity: number
+          price: number
+        }[]
+
+        const newItems = db
+          .prepare(
+            `SELECT si.quantity, si.price, p.name as product_name, p.description as product_description
+             FROM sale_items si
+             JOIN products p ON p.id = si.product_id
+             WHERE si.sale_id = ?`
+          )
+          .all(exchange.new_sale_id) as {
+          product_name: string
+          product_description: string | null
+          quantity: number
+          price: number
+        }[]
+
+        const receipt = buildExchangeReceipt(
+          exchange,
+          sale,
+          returnItems.map((i) => ({
+            product_name: i.product_name,
+            description: i.product_description,
+            quantity: i.quantity,
+            price: i.price
+          })),
+          newItems.map((i) => ({
+            product_name: i.product_name,
+            description: i.product_description,
+            quantity: i.quantity,
+            price: i.price
+          })),
+          receiptHeader
+        )
+        const config = getPrinterConfig(db, getDefaultPrinterMode())
+        validatePrinterConfig(config)
+
+        await printReceiptLines(receipt, config)
+
+        return { success: true }
+      }
+
       const items = db
         .prepare(
           `SELECT si.*, p.name as product_name, p.description as product_description
@@ -212,7 +296,8 @@ export function registerPrinterHandlers(): void {
           description: i.product_description,
           quantity: i.quantity,
           price: i.price
-        }))
+        })),
+        receiptHeader
       )
       const config = getPrinterConfig(db, getDefaultPrinterMode())
       validatePrinterConfig(config)
@@ -246,7 +331,20 @@ function getDefaultPrinterMode(): PrinterMode {
   return app.isPackaged ? 'system' : 'mock'
 }
 
-function buildTestReceipt(): ReceiptLine[] {
+function getReceiptHeader(db: Database.Database): ReceiptHeader {
+  const getSetting = db.prepare('SELECT value FROM app_settings WHERE key = ?')
+  const shopNameRow = getSetting.get(RECEIPT_SHOP_NAME_KEY) as { value: string } | undefined
+  const shopPhoneRow = getSetting.get(RECEIPT_SHOP_PHONE_KEY) as { value: string } | undefined
+  const shopName = shopNameRow ? shopNameRow.value.trim() : DEFAULT_RECEIPT_HEADER.shopName
+  const shopPhone = shopPhoneRow ? shopPhoneRow.value.trim() : DEFAULT_RECEIPT_HEADER.shopPhone
+
+  return {
+    shopName: shopName || DEFAULT_RECEIPT_HEADER.shopName,
+    shopPhone
+  }
+}
+
+function buildTestReceipt(header: ReceiptHeader): ReceiptLine[] {
   return buildReceipt(
     {
       id: 0,
@@ -259,6 +357,7 @@ function buildTestReceipt(): ReceiptLine[] {
     [
       { product_name: 'สินค้าทดสอบ', quantity: 1, price: 25 },
       { product_name: 'ค่าบริการตัวอย่าง', quantity: 1, price: 10 }
-    ]
+    ],
+    header
   )
 }

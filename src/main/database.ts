@@ -230,6 +230,22 @@ WHERE note LIKE 'คืนสินค้า (ใบเสร็จ #%'
 
 CREATE INDEX IF NOT EXISTS idx_customer_payments_date_kind ON customer_payments(date, payment_kind);
 `
+  },
+  {
+    version: 11,
+    sql: `
+ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_products_is_deleted ON products(is_deleted);
+`
+  },
+  {
+    version: 12,
+    sql: `
+ALTER TABLE sales ADD COLUMN delivery_status TEXT NOT NULL DEFAULT 'none';
+
+CREATE INDEX IF NOT EXISTS idx_sales_delivery_status ON sales(delivery_status);
+`
   }
 ]
 

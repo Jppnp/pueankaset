@@ -1,15 +1,21 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { ProductTable } from '../components/stock/ProductTable'
 import { ProductForm } from '../components/stock/ProductForm'
 import { ImportDialog } from '../components/stock/ImportDialog'
 import { useProducts } from '../hooks/useProducts'
-import type { Product, Store } from '../lib/types'
+import type { Product, ProductInput, ProductListStatus, Store } from '../lib/types'
 
 export function StockPage() {
   const [search, setSearch] = useState('')
   const [filterStoreId, setFilterStoreId] = useState<number | undefined>(undefined)
+  const [statusFilter, setStatusFilter] = useState<ProductListStatus>('notDeleted')
   const [stores, setStores] = useState<Store[]>([])
-  const { products, loading, refetch } = useProducts(search || undefined, filterStoreId)
+  const productListOptions = useMemo(() => ({ status: statusFilter }), [statusFilter])
+  const { products, loading, refetch } = useProducts(
+    search || undefined,
+    filterStoreId,
+    productListOptions
+  )
   const [formOpen, setFormOpen] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [importing, setImporting] = useState(false)
@@ -43,15 +49,7 @@ export function StockPage() {
   }, [])
 
   const handleSave = useCallback(
-    async (data: {
-      name: string
-      description: string | null
-      cost_price: number
-      sale_price: number
-      stock_on_hand: number
-      exclude_from_profit: number
-      store_id: number
-    }) => {
+    async (data: ProductInput) => {
       if (editProduct) {
         await window.api.updateProduct(editProduct.id, data)
       } else {
@@ -59,10 +57,10 @@ export function StockPage() {
       }
       setFormOpen(false)
       setEditProduct(null)
-      refetch(search || undefined, filterStoreId)
+      refetch(search || undefined, filterStoreId, productListOptions)
       fetchDbInfo()
     },
-    [editProduct, refetch, search, filterStoreId, fetchDbInfo]
+    [editProduct, refetch, search, filterStoreId, productListOptions, fetchDbInfo]
   )
 
   const handleImport = useCallback(async () => {
@@ -79,21 +77,21 @@ export function StockPage() {
       const result = await window.api.importFromStore(importFilePath, storeId)
       await fetchStores()
       alert(`นำเข้าสำเร็จ ${result.imported} สินค้า`)
-      refetch(search || undefined, filterStoreId)
+      refetch(search || undefined, filterStoreId, productListOptions)
       fetchDbInfo()
     } catch (err) {
       alert(`เกิดข้อผิดพลาด: ${err instanceof Error ? err.message : 'ไม่ทราบ'}`)
     } finally {
       setImporting(false)
     }
-  }, [importFilePath, refetch, search, filterStoreId, fetchDbInfo, fetchStores])
+  }, [importFilePath, refetch, search, filterStoreId, productListOptions, fetchDbInfo, fetchStores])
 
   const handleExport = useCallback(async () => {
-    const result = await window.api.exportProducts(filterStoreId)
+    const result = await window.api.exportProducts(filterStoreId, productListOptions)
     if (result.success) {
       alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
     }
-  }, [filterStoreId])
+  }, [filterStoreId, productListOptions])
 
   const handleAddStore = useCallback(async () => {
     if (!newStoreName.trim()) return
@@ -103,6 +101,32 @@ export function StockPage() {
     fetchStores()
   }, [newStoreName, fetchStores])
 
+  const refreshProducts = useCallback(() => {
+    refetch(search || undefined, filterStoreId, productListOptions)
+    fetchDbInfo()
+  }, [refetch, search, filterStoreId, productListOptions, fetchDbInfo])
+
+  const handleDelete = useCallback(
+    async (product: Product) => {
+      const confirmed = window.confirm(
+        `ลบสินค้า "${product.name}" ออกจากคลัง?\n\nประวัติการขายเดิมจะยังอยู่ แต่สินค้านี้จะไม่แสดงในหน้าขายและรายการคลังปกติ`
+      )
+      if (!confirmed) return
+
+      await window.api.deleteProduct(product.id)
+      refreshProducts()
+    },
+    [refreshProducts]
+  )
+
+  const handleRestore = useCallback(
+    async (product: Product) => {
+      await window.api.restoreProduct(product.id)
+      refreshProducts()
+    },
+    [refreshProducts]
+  )
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-4 border-b bg-white flex items-center justify-between">
@@ -110,11 +134,11 @@ export function StockPage() {
           <h1 className="text-xl font-bold text-gray-900">คลังสินค้า</h1>
           {dbInfo && (
             <p className="text-sm text-gray-500">
-              สินค้าทั้งหมด {dbInfo.productCount} รายการ
+              สินค้าในคลัง {dbInfo.productCount} รายการ
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <input
             type="text"
             value={search}
@@ -131,6 +155,15 @@ export function StockPage() {
             {stores.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ProductListStatus)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="notDeleted">สินค้าที่อยู่ในคลัง</option>
+            <option value="deleted">ลบแล้ว</option>
+            <option value="all">ทั้งหมด</option>
           </select>
           {addingStore ? (
             <div className="flex items-center gap-2">
@@ -188,7 +221,14 @@ export function StockPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <ProductTable products={products} stores={stores} loading={loading} onEdit={handleEdit} />
+        <ProductTable
+          products={products}
+          stores={stores}
+          loading={loading}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+        />
       </div>
 
       <ProductForm

@@ -1,5 +1,6 @@
 export type Role = 'owner' | 'employee'
 export type PaymentType = 'cash' | 'card' | 'transfer' | 'credit'
+export type DeliveryStatus = 'none' | 'waiting' | 'shipped'
 export type PrinterMode = 'mock' | 'system' | 'network' | 'device'
 export type PrinterTextEncoding = 'tis620' | 'utf8'
 export type UpdateStage =
@@ -53,6 +54,12 @@ export interface Store {
   created_at: string
 }
 
+export type ProductListStatus = 'notDeleted' | 'deleted' | 'all'
+
+export interface ProductListOptions {
+  status?: ProductListStatus
+}
+
 export interface Product {
   id: number
   name: string
@@ -62,8 +69,19 @@ export interface Product {
   stock_on_hand: number
   exclude_from_profit: number
   store_id: number
+  is_deleted: number
   created_at: string
   updated_at: string
+}
+
+export interface ProductInput {
+  name: string
+  description: string | null
+  cost_price: number
+  sale_price: number
+  stock_on_hand: number
+  exclude_from_profit: number
+  store_id: number
 }
 
 export interface Customer {
@@ -101,10 +119,13 @@ export interface Sale {
   id: number
   date: string
   total_amount: number
+  items_total?: number
+  card_fee_amount?: number
   remark: string | null
   seller_role: Role
   customer_id: number | null
   payment_type: PaymentType
+  delivery_status: DeliveryStatus
   customer_name?: string
   has_refund?: number
   has_exchange?: number
@@ -312,6 +333,7 @@ export interface CreateSaleInput {
   sellerRole: Role
   customerId?: number
   paymentType?: PaymentType
+  deliveryStatus?: DeliveryStatus
 }
 
 export interface CreateSaleResult {
@@ -322,12 +344,14 @@ export interface CreateSaleResult {
 // IPC API type for contextBridge
 export interface ElectronAPI {
   // Products
-  getProducts: (query?: string, storeId?: number) => Promise<Product[]>
+  getProducts: (query?: string, storeId?: number, options?: ProductListOptions) => Promise<Product[]>
   getProduct: (id: number) => Promise<Product | null>
-  createProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => Promise<Product>
-  updateProduct: (id: number, product: Partial<Product>) => Promise<Product>
+  createProduct: (product: ProductInput) => Promise<Product>
+  updateProduct: (id: number, product: Partial<ProductInput>) => Promise<Product>
   searchProducts: (query: string) => Promise<Product[]>
   checkDuplicateProduct: (name: string, excludeId?: number) => Promise<{ id: number; name: string } | null>
+  deleteProduct: (id: number) => Promise<{ success: boolean }>
+  restoreProduct: (id: number) => Promise<Product>
 
   // Sales
   createSale: (input: CreateSaleInput) => Promise<CreateSaleResult>
@@ -341,6 +365,7 @@ export interface ElectronAPI {
     itemId?: number
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
+  updateSaleDeliveryStatus: (id: number, deliveryStatus: DeliveryStatus) => Promise<{ success: boolean; deliveryStatus: DeliveryStatus }>
   getProfitSummary: (dateFrom?: string, dateTo?: string, storeId?: number, itemId?: number) => Promise<ProfitSummary>
 
   // Customers
@@ -425,7 +450,7 @@ export interface ElectronAPI {
   // Export
   exportSales: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportSalesDetail: (params: { dateFrom?: string; dateTo?: string; storeId?: number; itemId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
-  exportProducts: (storeId?: number) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportProducts: (storeId?: number, options?: ProductListOptions) => Promise<{ success: boolean; path?: string; error?: string }>
   exportExpenses: (params: { dateFrom?: string; dateTo?: string }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportCustomers: () => Promise<{ success: boolean; path?: string; error?: string }>
 

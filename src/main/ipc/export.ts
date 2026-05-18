@@ -11,6 +11,14 @@ const paymentLabels: Record<string, string> = {
   credit: 'เชื่อ'
 }
 
+type ProductListStatus = 'notDeleted' | 'deleted' | 'all'
+
+function normalizeProductStatus(status?: ProductListStatus): ProductListStatus {
+  return ['notDeleted', 'deleted', 'all'].includes(status ?? '')
+    ? status!
+    : 'notDeleted'
+}
+
 function toPositiveInteger(value: unknown): number | undefined {
   const numeric = typeof value === 'number'
     ? value
@@ -97,7 +105,12 @@ export function registerExportHandlers(): void {
 
       const sales = db
         .prepare(
-          `SELECT s.id, s.date, s.total_amount, s.payment_type, s.seller_role, s.remark,
+          `SELECT s.id, s.date, s.total_amount, s.payment_type, s.seller_role, s.delivery_status, s.remark,
+                  COALESCE((
+                    SELECT SUM(si.price * si.quantity)
+                    FROM sale_items si
+                    WHERE si.sale_id = s.id
+                  ), 0) as items_total,
                   c.name as customer_name
            FROM sales s
            LEFT JOIN customers c ON c.id = s.customer_id
@@ -108,8 +121,10 @@ export function registerExportHandlers(): void {
         id: number
         date: string
         total_amount: number
+        items_total: number
         payment_type: string
         seller_role: string
+        delivery_status: string
         remark: string | null
         customer_name: string | null
       }[]
@@ -117,9 +132,12 @@ export function registerExportHandlers(): void {
       const header = toCsvRow([
         'เลขที่',
         'วันที่',
-        'ยอดรวม',
+        'ยอดสินค้า',
+        'ค่าธรรมเนียมบัตร',
+        'ยอดชำระจริง',
         'วิธีชำระ',
         'ผู้ขาย',
+        'จัดส่ง',
         'ลูกค้า',
         'หมายเหตุ'
       ])
@@ -128,18 +146,27 @@ export function registerExportHandlers(): void {
         owner: 'เจ้าของ',
         employee: 'พนักงาน'
       }
+      const deliveryLabels: Record<string, string> = {
+        none: 'รับหน้าร้าน',
+        waiting: 'รอจัดส่ง',
+        shipped: 'จัดส่งแล้ว'
+      }
 
-      const rows = sales.map((s) =>
-        toCsvRow([
+      const rows = sales.map((s) => {
+        const cardFee = Math.max(0, Math.round((s.total_amount - s.items_total) * 100) / 100)
+        return toCsvRow([
           s.id,
           s.date,
+          s.items_total,
+          cardFee,
           s.total_amount,
           paymentLabels[s.payment_type] ?? s.payment_type,
           roleLabels[s.seller_role] ?? s.seller_role,
+          deliveryLabels[s.delivery_status] ?? s.delivery_status,
           s.customer_name,
           s.remark
         ])
-      )
+      })
 
       const csv = [header, ...rows].join('\n')
       return saveCsvFile(csv, `ประวัติการขาย.csv`)
@@ -176,7 +203,7 @@ export function registerExportHandlers(): void {
 
       const items = db
         .prepare(
-          `SELECT s.id as sale_id, s.date, s.payment_type, s.seller_role,
+          `SELECT s.id as sale_id, s.date, s.payment_type, s.seller_role, s.delivery_status,
                   p.name as product_name, si.quantity, si.price, si.cost_price,
                   c.name as customer_name
            FROM sale_items si
@@ -191,6 +218,7 @@ export function registerExportHandlers(): void {
         date: string
         payment_type: string
         seller_role: string
+        delivery_status: string
         product_name: string
         quantity: number
         price: number
@@ -208,8 +236,15 @@ export function registerExportHandlers(): void {
         'รวม',
         'กำไร',
         'วิธีชำระ',
+        'จัดส่ง',
         'ลูกค้า'
       ])
+
+      const deliveryLabels: Record<string, string> = {
+        none: 'รับหน้าร้าน',
+        waiting: 'รอจัดส่ง',
+        shipped: 'จัดส่งแล้ว'
+      }
 
       const rows = items.map((i) =>
         toCsvRow([
@@ -222,6 +257,7 @@ export function registerExportHandlers(): void {
           Math.round(i.price * i.quantity * 100) / 100,
           Math.round((i.price - i.cost_price) * i.quantity * 100) / 100,
           paymentLabels[i.payment_type] ?? i.payment_type,
+          deliveryLabels[i.delivery_status] ?? i.delivery_status,
           i.customer_name
         ])
       )
@@ -232,62 +268,81 @@ export function registerExportHandlers(): void {
   )
 
   // Export products
-  ipcMain.handle('export:products', async (_event, storeId?: number) => {
-    const db = getDb()
+  ipcMain.handle(
+    'export:products',
+    async (_event, storeId?: number, options?: { status?: ProductListStatus }) => {
+      const db = getDb()
+      const conditions: string[] = []
+      const params: unknown[] = []
+      const status = normalizeProductStatus(options?.status)
 
-    const where = storeId ? 'WHERE p.store_id = ?' : ''
-    const params = storeId ? [storeId] : []
+      if (status === 'deleted') {
+        conditions.push('p.is_deleted = 1')
+      } else if (status === 'notDeleted') {
+        conditions.push('p.is_deleted = 0')
+      }
 
-    const products = db
-      .prepare(
-        `SELECT p.*, s.name as store_name
-         FROM products p
-         LEFT JOIN stores s ON s.id = p.store_id
-         ${where}
-         ORDER BY p.name`
-      )
-      .all(...params) as {
-      id: number
-      name: string
-      description: string | null
-      cost_price: number
-      sale_price: number
-      stock_on_hand: number
-      exclude_from_profit: number
-      store_name: string | null
-    }[]
+      if (storeId) {
+        conditions.push('p.store_id = ?')
+        params.push(storeId)
+      }
 
-    const header = toCsvRow([
-      'รหัส',
-      'ชื่อสินค้า',
-      'รายละเอียด',
-      'ราคาทุน',
-      'ราคาขาย',
-      'กำไรต่อชิ้น',
-      'คงเหลือ',
-      'มูลค่าคงเหลือ (ทุน)',
-      'ร้านค้า',
-      'ไม่นับกำไร'
-    ])
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
-    const rows = products.map((p) =>
-      toCsvRow([
-        p.id,
-        p.name,
-        p.description,
-        p.cost_price,
-        p.sale_price,
-        Math.round((p.sale_price - p.cost_price) * 100) / 100,
-        p.stock_on_hand,
-        Math.round(p.cost_price * p.stock_on_hand * 100) / 100,
-        p.store_name,
-        p.exclude_from_profit ? 'ใช่' : ''
+      const products = db
+        .prepare(
+          `SELECT p.*, s.name as store_name
+           FROM products p
+           LEFT JOIN stores s ON s.id = p.store_id
+           ${where}
+           ORDER BY p.name`
+        )
+        .all(...params) as {
+        id: number
+        name: string
+        description: string | null
+        cost_price: number
+        sale_price: number
+        stock_on_hand: number
+        exclude_from_profit: number
+        is_deleted: number
+        store_name: string | null
+      }[]
+
+      const header = toCsvRow([
+        'รหัส',
+        'ชื่อสินค้า',
+        'รายละเอียด',
+        'ราคาทุน',
+        'ราคาขาย',
+        'กำไรต่อชิ้น',
+        'คงเหลือ',
+        'มูลค่าคงเหลือ (ทุน)',
+        'ร้านค้า',
+        'สถานะ',
+        'ไม่นับกำไร'
       ])
-    )
 
-    const csv = [header, ...rows].join('\n')
-    return saveCsvFile(csv, `สินค้าทั้งหมด.csv`)
-  })
+      const rows = products.map((p) =>
+        toCsvRow([
+          p.id,
+          p.name,
+          p.description,
+          p.cost_price,
+          p.sale_price,
+          Math.round((p.sale_price - p.cost_price) * 100) / 100,
+          p.stock_on_hand,
+          Math.round(p.cost_price * p.stock_on_hand * 100) / 100,
+          p.store_name,
+          p.is_deleted ? 'ลบแล้ว' : 'ใช้งาน',
+          p.exclude_from_profit ? 'ใช่' : ''
+        ])
+      )
+
+      const csv = [header, ...rows].join('\n')
+      return saveCsvFile(csv, `สินค้าทั้งหมด.csv`)
+    }
+  )
 
   // Export expenses
   ipcMain.handle(

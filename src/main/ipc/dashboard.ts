@@ -88,7 +88,7 @@ export function registerDashboardHandlers(): void {
     (_event, threshold?: number, storeId?: number) => {
       const db = getDb()
 
-      const conditions: string[] = []
+      const conditions: string[] = ['is_deleted = 0']
       const params: unknown[] = []
 
       conditions.push('stock_on_hand <= ?')

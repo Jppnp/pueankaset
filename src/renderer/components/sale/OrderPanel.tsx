@@ -10,6 +10,8 @@ interface OrderPanelProps {
   onRemove: (productId: number) => void
   onCheckout: () => void
   onPark: () => void
+  deliveryPending: boolean
+  onDeliveryPendingChange: (checked: boolean) => void
 }
 
 export function OrderPanel({
@@ -19,7 +21,9 @@ export function OrderPanel({
   onUpdatePrice,
   onRemove,
   onCheckout,
-  onPark
+  onPark,
+  deliveryPending,
+  onDeliveryPendingChange
 }: OrderPanelProps) {
   const [quantityInputs, setQuantityInputs] = useState<Record<number, string>>({})
 
@@ -146,6 +150,16 @@ export function OrderPanel({
       </div>
 
       <div className="shrink-0 border-t bg-white p-4">
+        <label className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <input
+            type="checkbox"
+            checked={deliveryPending}
+            onChange={(e) => onDeliveryPendingChange(e.target.checked)}
+            disabled={items.length === 0}
+            className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 disabled:opacity-50"
+          />
+          <span className="font-medium">รอจัดส่ง</span>
+        </label>
         <div className="flex items-center justify-between mb-4">
           <span className="text-lg font-semibold text-gray-700">รวมทั้งสิ้น</span>
           <span className="text-2xl font-bold text-green-700">{formatBaht(total)}</span>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { OrderItem, CreateSaleResult, Role, PaymentType } from '../lib/types'
+import type { OrderItem, CreateSaleResult, Role, PaymentType, DeliveryStatus } from '../lib/types'
 
 export function useSale() {
   const [items, setItems] = useState<OrderItem[]>([])
@@ -74,7 +74,8 @@ export function useSale() {
       extraAmount?: number,
       sellerRole?: Role,
       customerId?: number,
-      paymentType?: PaymentType
+      paymentType?: PaymentType,
+      deliveryStatus?: DeliveryStatus
     ): Promise<CreateSaleResult> => {
       const result = await window.api.createSale({
         items: items.map((i) => ({
@@ -87,7 +88,8 @@ export function useSale() {
         extraAmount,
         sellerRole: sellerRole ?? 'owner',
         customerId,
-        paymentType
+        paymentType,
+        deliveryStatus
       })
       setItems([])
       return result

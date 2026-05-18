@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Sale } from '../../lib/types'
-import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
+import { formatBaht, formatDeliveryStatus, formatPaymentType, formatThaiDate } from '../../lib/format'
 
 interface OrderListProps {
   sales: Sale[]
@@ -19,15 +19,19 @@ export function OrderList({ sales, selectedId, onSelect, showItemNames = false, 
 
   return (
     <div className="divide-y" role="list" aria-label="รายการขาย">
-      {sales.map((sale) => (
-        <button
-          role="listitem"
-          key={sale.id}
-          onClick={() => onSelect(sale.id)}
-          className={`w-full text-left px-4 py-3 transition-colors ${
-            selectedId === sale.id ? 'bg-green-50 border-l-4 border-green-500' : 'hover:bg-gray-50'
-          }`}
-        >
+      {sales.map((sale) => {
+        const historyTotal = sale.items_total ?? sale.total_amount
+        const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - historyTotal)
+
+        return (
+          <button
+            role="listitem"
+            key={sale.id}
+            onClick={() => onSelect(sale.id)}
+            className={`w-full text-left px-4 py-3 transition-colors ${
+              selectedId === sale.id ? 'bg-green-50 border-l-4 border-green-500' : 'hover:bg-gray-50'
+            }`}
+          >
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-medium text-gray-900">
@@ -42,11 +46,23 @@ export function OrderList({ sales, selectedId, onSelect, showItemNames = false, 
                     เปลี่ยนสินค้า
                   </span>
                 ) : null}
+                {sale.delivery_status && sale.delivery_status !== 'none' ? (
+                  <span className={`text-xs px-1.5 py-0.5 rounded ml-1 ${
+                    sale.delivery_status === 'waiting'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {formatDeliveryStatus(sale.delivery_status)}
+                  </span>
+                ) : null}
               </span>
               <p className="text-xs text-gray-500">{formatThaiDate(sale.date)}</p>
             </div>
             <div className="text-right">
-              <span className="font-semibold text-green-700">{formatBaht(sale.total_amount)}</span>
+              <span className="font-semibold text-green-700">{formatBaht(historyTotal)}</span>
+              {cardFee > 0 && (
+                <p className="text-xs text-gray-400">ไม่รวมค่าบัตร {formatBaht(cardFee)}</p>
+              )}
               <div className="flex items-center justify-end gap-1 mt-0.5">
                 <span className="text-xs text-gray-400">
                   {sale.seller_role === 'owner' ? 'เจ้าของร้าน' : 'พนักงาน'}
@@ -75,7 +91,8 @@ export function OrderList({ sales, selectedId, onSelect, showItemNames = false, 
             <p className="text-xs text-gray-400 mt-0.5">{sale.remark}</p>
           )}
         </button>
-      ))}
+        )
+      })}
     </div>
   )
 }

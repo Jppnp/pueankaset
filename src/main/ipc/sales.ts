@@ -2,6 +2,10 @@ import { ipcMain } from 'electron'
 import { getDb } from '../database'
 import { insertStockMovement } from './stock-movements'
 
+type DeliveryStatus = 'none' | 'waiting' | 'shipped'
+
+const DELIVERY_STATUSES: DeliveryStatus[] = ['none', 'waiting', 'shipped']
+
 function toPositiveInteger(value: unknown): number | undefined {
   const numeric = typeof value === 'number'
     ? value
@@ -14,6 +18,10 @@ function toPositiveInteger(value: unknown): number | undefined {
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
+}
+
+function normalizeDeliveryStatus(value: unknown): DeliveryStatus {
+  return DELIVERY_STATUSES.includes(value as DeliveryStatus) ? value as DeliveryStatus : 'none'
 }
 
 export function registerSaleHandlers(): void {
@@ -33,6 +41,7 @@ export function registerSaleHandlers(): void {
         sellerRole: 'owner' | 'employee'
         customerId?: number
         paymentType?: 'cash' | 'card' | 'transfer' | 'credit'
+        deliveryStatus?: DeliveryStatus
       }
     ) => {
       if (!['owner', 'employee'].includes(input.sellerRole)) {
@@ -43,6 +52,8 @@ export function registerSaleHandlers(): void {
       if (!['cash', 'card', 'transfer', 'credit'].includes(paymentType)) {
         throw new Error('Invalid payment type')
       }
+
+      const deliveryStatus = normalizeDeliveryStatus(input.deliveryStatus)
 
       if (paymentType === 'credit' && !input.customerId) {
         throw new Error('ต้องเลือกลูกค้าก่อนใช้การเชื่อ')
@@ -60,8 +71,12 @@ export function registerSaleHandlers(): void {
         const total = Math.round((itemsTotal + (input.extraAmount ?? 0)) * 100) / 100
 
         const saleResult = db
-          .prepare(`INSERT INTO sales (date, total_amount, remark, seller_role, customer_id, payment_type) VALUES (datetime('now'), ?, ?, ?, ?, ?)`)
-          .run(total, input.remark ?? null, input.sellerRole, input.customerId ?? null, paymentType)
+          .prepare(
+            `INSERT INTO sales (
+              date, total_amount, remark, seller_role, customer_id, payment_type, delivery_status
+            ) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)`
+          )
+          .run(total, input.remark ?? null, input.sellerRole, input.customerId ?? null, paymentType, deliveryStatus)
 
         const saleId = saleResult.lastInsertRowid as number
 
@@ -73,15 +88,23 @@ export function registerSaleHandlers(): void {
         )
 
         const checkStock = db.prepare(
-          `SELECT stock_on_hand, name FROM products WHERE id = ?`
+          `SELECT stock_on_hand, name, is_deleted FROM products WHERE id = ?`
         )
 
         for (const item of input.items) {
           const product = checkStock.get(item.product_id) as
-            | { stock_on_hand: number; name: string }
+            | { stock_on_hand: number; name: string; is_deleted: number }
             | undefined
           if (!product) {
             throw new Error(`ไม่พบสินค้า (id: ${item.product_id})`)
+          }
+          if (product.is_deleted) {
+            throw new Error(`สินค้า "${product.name}" ไม่พร้อมขาย`)
+          }
+          if (product.stock_on_hand >= 0 && product.stock_on_hand < item.quantity) {
+            throw new Error(
+              `สินค้า "${product.name}" มีสต็อกไม่เพียงพอ (คงเหลือ ${product.stock_on_hand} ต้องการ ${item.quantity})`
+            )
           }
           insertItem.run(saleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
@@ -102,6 +125,27 @@ export function registerSaleHandlers(): void {
       })
 
       return createSale()
+    }
+  )
+
+  ipcMain.handle(
+    'sales:update-delivery-status',
+    (_event, saleId: number, deliveryStatusInput: DeliveryStatus) => {
+      const deliveryStatus = normalizeDeliveryStatus(deliveryStatusInput)
+      if (!Number.isInteger(saleId) || saleId <= 0) {
+        throw new Error('Invalid sale id')
+      }
+
+      const db = getDb()
+      const result = db
+        .prepare("UPDATE sales SET delivery_status = ? WHERE id = ?")
+        .run(deliveryStatus, saleId)
+
+      if (result.changes === 0) {
+        throw new Error('ไม่พบรายการขาย')
+      }
+
+      return { success: true, deliveryStatus }
     }
   )
 
@@ -169,6 +213,11 @@ export function registerSaleHandlers(): void {
       const data = db
         .prepare(
           `SELECT s.*, c.name as customer_name,
+            COALESCE((
+              SELECT SUM(si.price * si.quantity)
+              FROM sale_items si
+              WHERE si.sale_id = s.id
+            ), 0) as items_total,
             EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund,
             EXISTS (SELECT 1 FROM exchanges e WHERE e.original_sale_id = s.id) as has_exchange,
             (
@@ -209,6 +258,15 @@ export function registerSaleHandlers(): void {
          WHERE si.sale_id = ?`
       )
       .all(id)
+
+    const itemsTotal = roundMoney(
+      items.reduce((sum, item) => {
+        const saleItem = item as { price: number; quantity: number }
+        return sum + saleItem.price * saleItem.quantity
+      }, 0)
+    )
+    const totalAmount = (sale as { total_amount: number }).total_amount
+    const cardFeeAmount = roundMoney(Math.max(0, totalAmount - itemsTotal))
 
     const refunds = db
       .prepare('SELECT * FROM refunds WHERE sale_id = ? ORDER BY date DESC')
@@ -252,7 +310,14 @@ export function registerSaleHandlers(): void {
       newItems: getExchangeNewItems.all(e.new_sale_id)
     }))
 
-    return { ...sale, items, refunds: refundsWithItems, exchanges: exchangesWithDetails }
+    return {
+      ...sale,
+      items_total: itemsTotal,
+      card_fee_amount: cardFeeAmount,
+      items,
+      refunds: refundsWithItems,
+      exchanges: exchangesWithDetails
+    }
   })
 
   ipcMain.handle(

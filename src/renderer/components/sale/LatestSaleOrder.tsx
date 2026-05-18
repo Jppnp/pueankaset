@@ -1,6 +1,6 @@
 import React from 'react'
 import type { SaleWithItems } from '../../lib/types'
-import { formatBaht, formatPaymentType, formatThaiDate } from '../../lib/format'
+import { formatBaht, formatDeliveryStatus, formatPaymentType, formatThaiDate } from '../../lib/format'
 
 interface LatestSaleOrderProps {
   sale: SaleWithItems | null
@@ -22,7 +22,18 @@ export function LatestSaleOrder({ sale, loading, onPrint, onRefresh }: LatestSal
         <div className="w-36 shrink-0">
           <p className="text-xs font-semibold text-gray-500">ออเดอร์ล่าสุด</p>
           {sale ? (
-            <p className="truncate text-sm font-semibold text-gray-900">ใบเสร็จ #{sale.id}</p>
+            <p className="truncate text-sm font-semibold text-gray-900">
+              ใบเสร็จ #{sale.id}
+              {sale.delivery_status && sale.delivery_status !== 'none' && (
+                <span className={`ml-1 rounded px-1.5 py-0.5 text-xs ${
+                  sale.delivery_status === 'waiting'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {formatDeliveryStatus(sale.delivery_status)}
+                </span>
+              )}
+            </p>
           ) : (
             <p className="text-sm text-gray-500">ยังไม่มีรายการขาย</p>
           )}

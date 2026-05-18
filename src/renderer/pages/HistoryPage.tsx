@@ -49,7 +49,7 @@ export function HistoryPage() {
     const timeout = window.setTimeout(async () => {
       setItemSearchLoading(true)
       try {
-        const results = await window.api.getProducts(query, selectedStoreId)
+        const results = await window.api.getProducts(query, selectedStoreId, { status: 'all' })
         if (active) setItemResults(results)
       } finally {
         if (active) setItemSearchLoading(false)
@@ -269,7 +269,13 @@ export function HistoryPage() {
 
         {/* Right - Detail */}
         <div className="flex-1 overflow-y-auto">
-          <OrderDetail sale={detail} loading={detailLoading} onPrint={handlePrint} onRefundSuccess={handleRefundSuccess} />
+          <OrderDetail
+            sale={detail}
+            loading={detailLoading}
+            onPrint={handlePrint}
+            onRefundSuccess={handleRefundSuccess}
+            onDeliveryStatusChange={handleRefundSuccess}
+          />
         </div>
       </div>
 
