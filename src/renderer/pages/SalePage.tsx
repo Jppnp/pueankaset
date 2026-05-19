@@ -6,6 +6,7 @@ import { ParkedOrderBar } from '../components/sale/ParkedOrderBar'
 import { CheckoutDialog } from '../components/sale/CheckoutDialog'
 import { CustomerSelector } from '../components/sale/CustomerSelector'
 import { LatestSaleOrder } from '../components/sale/LatestSaleOrder'
+import { AddSaleItemDialog } from '../components/sale/AddSaleItemDialog'
 import { SaleNotification } from '../components/layout/SaleNotification'
 import { useProductSearch } from '../hooks/useProducts'
 import { useSale } from '../hooks/useSale'
@@ -22,6 +23,7 @@ export function SalePage() {
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null)
   const [latestSale, setLatestSale] = useState<SaleWithItems | null>(null)
   const [latestSaleLoading, setLatestSaleLoading] = useState(true)
+  const [showAddToLatestSale, setShowAddToLatestSale] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { results, loading, search, clear } = useProductSearch()
@@ -131,6 +133,20 @@ export function SalePage() {
     }
   }, [])
 
+  const handleAddLatestSaleItemSuccess = useCallback(
+    (result: { saleId: number }) => {
+      window.api
+        .getSaleDetail(result.saleId)
+        .then((detail) => {
+          if (detail) setLatestSale(detail)
+        })
+        .catch(() => {
+          void fetchLatestSale()
+        })
+    },
+    [fetchLatestSale]
+  )
+
   const handleCheckout = useCallback(
     async (options: {
       remark?: string
@@ -199,7 +215,7 @@ export function SalePage() {
                 sale={latestSale}
                 loading={latestSaleLoading}
                 onPrint={handlePrint}
-                onRefresh={fetchLatestSale}
+                onAddItem={() => setShowAddToLatestSale(true)}
               />
             </div>
           )}
@@ -245,6 +261,13 @@ export function SalePage() {
         selectedCustomer={selectedCustomer}
         deliveryPending={deliveryPending}
         onConfirm={handleCheckout}
+      />
+
+      <AddSaleItemDialog
+        open={showAddToLatestSale}
+        sale={latestSale}
+        onClose={() => setShowAddToLatestSale(false)}
+        onSuccess={handleAddLatestSaleItemSuccess}
       />
 
       <SaleNotification total={notification} onDismiss={() => setNotification(null)} />

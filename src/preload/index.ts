@@ -26,6 +26,13 @@ const api = {
     deliveryStatus?: string
   }) =>
     ipcRenderer.invoke('sales:create', input),
+  addSaleItem: (input: {
+    saleId: number
+    productId: number
+    quantity: number
+    sellerRole: string
+  }) =>
+    ipcRenderer.invoke('sales:add-item', input),
   getSales: (params: {
     page: number
     pageSize: number

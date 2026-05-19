@@ -6,10 +6,10 @@ interface LatestSaleOrderProps {
   sale: SaleWithItems | null
   loading: boolean
   onPrint: (saleId: number) => void
-  onRefresh: () => void
+  onAddItem: () => void
 }
 
-export function LatestSaleOrder({ sale, loading, onPrint, onRefresh }: LatestSaleOrderProps) {
+export function LatestSaleOrder({ sale, loading, onPrint, onAddItem }: LatestSaleOrderProps) {
   const visibleItems = sale?.items.slice(0, 2) ?? []
   const remainingItems = sale ? sale.items.length - visibleItems.length : 0
   const itemSummary = visibleItems
@@ -64,22 +64,25 @@ export function LatestSaleOrder({ sale, loading, onPrint, onRefresh }: LatestSal
               {formatBaht(sale.total_amount)}
             </p>
           )}
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            className="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 disabled:opacity-50"
-          >
-            รีเฟรช
-          </button>
           {sale && (
-            <button
-              type="button"
-              onClick={() => onPrint(sale.id)}
-              className="rounded-lg bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700"
-            >
-              พิมพ์ซ้ำ
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onAddItem}
+                disabled={loading}
+                className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+              >
+                เพิ่มสินค้า
+              </button>
+              <button
+                type="button"
+                onClick={() => onPrint(sale.id)}
+                disabled={loading}
+                className="rounded-lg bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                พิมพ์ซ้ำ
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -341,6 +341,23 @@ export interface CreateSaleResult {
   total: number
 }
 
+export interface AddSaleItemInput {
+  saleId: number
+  productId: number
+  quantity: number
+  sellerRole: Role
+}
+
+export interface AddSaleItemResult {
+  saleId: number
+  saleItemId: number
+  productId: number
+  productName: string
+  quantity: number
+  lineTotal: number
+  total: number
+}
+
 // IPC API type for contextBridge
 export interface ElectronAPI {
   // Products
@@ -355,6 +372,7 @@ export interface ElectronAPI {
 
   // Sales
   createSale: (input: CreateSaleInput) => Promise<CreateSaleResult>
+  addSaleItem: (input: AddSaleItemInput) => Promise<AddSaleItemResult>
   getSales: (params: {
     page: number
     pageSize: number

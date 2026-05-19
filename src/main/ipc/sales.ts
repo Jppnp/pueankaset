@@ -15,7 +15,7 @@ function toPositiveInteger(value: unknown): number | undefined {
       ? Number(value)
       : undefined
 
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
+  return numeric !== undefined && Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
 }
 
 function roundMoney(value: number): number {
@@ -130,6 +130,123 @@ export function registerSaleHandlers(): void {
       })
 
       return createSale()
+    }
+  )
+
+  ipcMain.handle(
+    'sales:add-item',
+    (
+      _event,
+      input: {
+        saleId: number
+        productId: number
+        quantity: number
+        sellerRole: 'owner' | 'employee'
+      }
+    ) => {
+      if (!['owner', 'employee'].includes(input.sellerRole)) {
+        throw new Error('Invalid seller role')
+      }
+
+      const saleId = toPositiveInteger(input.saleId)
+      const productId = toPositiveInteger(input.productId)
+      const quantity = toPositiveInteger(input.quantity)
+
+      if (!saleId) throw new Error('Invalid sale id')
+      if (!productId) throw new Error('Invalid product id')
+      if (!quantity) throw new Error('จำนวนต้องมากกว่า 0')
+
+      const db = getDb()
+
+      const addItemToSale = db.transaction(() => {
+        const sale = db.prepare('SELECT id, total_amount FROM sales WHERE id = ?').get(saleId) as
+          | { id: number; total_amount: number }
+          | undefined
+        if (!sale) throw new Error('ไม่พบรายการขาย')
+
+        const product = db
+          .prepare('SELECT id, name, sale_price, cost_price, stock_on_hand, is_deleted FROM products WHERE id = ?')
+          .get(productId) as
+          | {
+              id: number
+              name: string
+              sale_price: number
+              cost_price: number
+              stock_on_hand: number
+              is_deleted: number
+            }
+          | undefined
+
+        if (!product) throw new Error('ไม่พบสินค้า')
+        if (product.is_deleted) {
+          throw new Error(`สินค้า "${product.name}" ไม่พร้อมขาย`)
+        }
+        if (product.stock_on_hand < quantity) {
+          throw new Error(`สินค้า "${product.name}" คงเหลือไม่พอ (เหลือ ${product.stock_on_hand} ชิ้น)`)
+        }
+
+        const lineTotal = roundMoney(product.sale_price * quantity)
+        const updatedTotal = roundMoney(sale.total_amount + lineTotal)
+        const stockAfter = product.stock_on_hand - quantity
+
+        const existingItem = db
+          .prepare(
+            `SELECT si.id, si.quantity
+             FROM sale_items si
+             WHERE si.sale_id = ?
+               AND si.product_id = ?
+               AND si.price = ?
+               AND si.cost_price = ?
+               AND NOT EXISTS (
+                 SELECT 1 FROM refund_items ri WHERE ri.sale_item_id = si.id
+               )
+             ORDER BY si.id DESC
+             LIMIT 1`
+          )
+          .get(saleId, productId, product.sale_price, product.cost_price) as
+          | { id: number; quantity: number }
+          | undefined
+
+        let saleItemId: number
+        if (existingItem) {
+          saleItemId = existingItem.id
+          db.prepare('UPDATE sale_items SET quantity = ? WHERE id = ?')
+            .run(existingItem.quantity + quantity, existingItem.id)
+        } else {
+          const itemResult = db
+            .prepare('INSERT INTO sale_items (sale_id, product_id, quantity, price, cost_price) VALUES (?, ?, ?, ?, ?)')
+            .run(saleId, productId, quantity, product.sale_price, product.cost_price)
+          saleItemId = itemResult.lastInsertRowid as number
+        }
+
+        db.prepare('UPDATE sales SET total_amount = ? WHERE id = ?').run(updatedTotal, saleId)
+        db.prepare("UPDATE products SET stock_on_hand = ?, updated_at = datetime('now') WHERE id = ?")
+          .run(stockAfter, productId)
+
+        insertStockMovement(db, {
+          productId,
+          type: 'out',
+          quantity,
+          stockBefore: product.stock_on_hand,
+          stockAfter,
+          reason: `เพิ่มสินค้าในใบเสร็จ #${saleId}`,
+          referenceType: 'sale',
+          referenceId: saleId,
+          createdBy: input.sellerRole
+        })
+
+        return {
+          saleId,
+          saleItemId,
+          productId,
+          productName: product.name,
+          quantity,
+          lineTotal,
+          total: updatedTotal
+        }
+      })
+
+      return addItemToSale()
     }
   )
 
@@ -274,12 +391,11 @@ export function registerSaleHandlers(): void {
          JOIN products p ON p.id = si.product_id
          WHERE si.sale_id = ?`
       )
-      .all(id)
+      .all(id) as { price: number; quantity: number }[]
 
     const itemsTotal = roundMoney(
       items.reduce((sum, item) => {
-        const saleItem = item as { price: number; quantity: number }
-        return sum + saleItem.price * saleItem.quantity
+        return sum + item.price * item.quantity
       }, 0)
     )
     const totalAmount = (sale as { total_amount: number }).total_amount
