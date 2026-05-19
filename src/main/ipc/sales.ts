@@ -111,11 +111,6 @@ export function registerSaleHandlers(): void {
           if (product.is_deleted) {
             throw new Error(`สินค้า "${product.name}" ไม่พร้อมขาย`)
           }
-          if (product.stock_on_hand >= 0 && product.stock_on_hand < item.quantity) {
-            throw new Error(
-              `สินค้า "${product.name}" มีสต็อกไม่เพียงพอ (คงเหลือ ${product.stock_on_hand} ต้องการ ${item.quantity})`
-            )
-          }
           insertItem.run(saleId, item.product_id, item.quantity, item.price, item.cost_price)
           decrementStock.run(item.quantity, item.product_id)
           insertStockMovement(db, {
