@@ -41,7 +41,7 @@ mac:
         - arm64
   entitlementsInherit: build/entitlements.mac.plist
 dmg:
-  artifactName: pueankaset-${version}.${ext}
+  artifactName: pueankaset-${version}-${arch}.${ext}
 publish:
   provider: github
   owner: jppnp
