@@ -31,7 +31,7 @@ export function useMonthlyReport() {
           window.api.getProfitSummary(current.from, current.to, storeId),
           window.api.getProfitSummary(previous.from, previous.to, storeId),
           window.api.getTopProducts(current.from, current.to, 10, storeId),
-          window.api.getExpenseSummary(current.from, current.to),
+          window.api.getExpenseSummary(current.from, current.to, storeId),
           window.api.getCustomersWithDebt()
         ])
 

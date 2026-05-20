@@ -29,7 +29,10 @@ export function ExpenseList({ expenses, selectedId, onSelect, onDelete }: Props)
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-medium text-gray-900">{exp.category}</span>
-              <p className="text-xs text-gray-500">{formatThaiDate(exp.date)}</p>
+              <p className="text-xs text-gray-500">
+                {formatThaiDate(exp.date)}
+                {exp.store_name && <span className="ml-1">· {exp.store_name}</span>}
+              </p>
               {exp.description && (
                 <p className="text-xs text-gray-400 mt-0.5">{exp.description}</p>
               )}

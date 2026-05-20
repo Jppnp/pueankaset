@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from '../shared/Modal'
 import { EXPENSE_CATEGORIES } from '../../lib/expenseCategories'
 import { toISODate } from '../../lib/format'
-import type { Expense } from '../../lib/types'
+import type { Expense, Store } from '../../lib/types'
 
 interface Props {
   open: boolean
@@ -10,14 +10,17 @@ interface Props {
   expense: Expense | null // null = create mode
   onSave: () => void
   createdBy: string
+  stores: Store[]
+  defaultStoreId?: number
 }
 
-export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props) {
+export function ExpenseForm({ open, onClose, expense, onSave, createdBy, stores, defaultStoreId }: Props) {
   const [category, setCategory] = useState('')
   const [customCategory, setCustomCategory] = useState('')
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(toISODate(new Date()))
+  const [storeId, setStoreId] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -38,18 +41,20 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
         setAmount(expense.amount.toString())
         setDescription(expense.description ?? '')
         setDate(expense.date ? expense.date.split(' ')[0] : toISODate(new Date()))
+        setStoreId(expense.store_id ?? defaultStoreId ?? stores[0]?.id ?? 1)
       } else {
         setCategory(EXPENSE_CATEGORIES[0].value)
         setCustomCategory('')
         setAmount('')
         setDescription('')
         setDate(toISODate(new Date()))
+        setStoreId(defaultStoreId ?? stores[0]?.id ?? 1)
       }
       setError(null)
       setFieldErrors({})
       setSaving(false)
     }
-  }, [open, expense])
+  }, [open, expense, defaultStoreId, stores])
 
   const handleAmountChange = (value: string) => {
     setAmount(value)
@@ -100,7 +105,8 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           category: finalCategory,
           amount: Math.round(num * 100) / 100,
           description: description.trim() || undefined,
-          date: `${date} 00:00:00`
+          date: `${date} 00:00:00`,
+          storeId
         })
       } else {
         await window.api.createExpense({
@@ -108,7 +114,8 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           amount: Math.round(num * 100) / 100,
           description: description.trim() || undefined,
           date: `${date} 00:00:00`,
-          createdBy
+          createdBy,
+          storeId
         })
       }
       onSave()
@@ -152,6 +159,22 @@ export function ExpenseForm({ open, onClose, expense, onSave, createdBy }: Props
           {fieldErrors.category && (
             <p className="text-xs text-red-500 mt-1">{fieldErrors.category}</p>
           )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">ร้านค้า *</label>
+          <select
+            value={storeId}
+            onChange={(e) => setStoreId(Number(e.target.value))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            {stores.length === 0 ? (
+              <option value={storeId}>ร้านหลัก</option>
+            ) : (
+              stores.map((store) => (
+                <option key={store.id} value={store.id}>{store.name}</option>
+              ))
+            )}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">จำนวนเงิน (บาท) *</label>

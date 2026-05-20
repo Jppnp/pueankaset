@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import type { DeliveryStatus, SaleWithItems } from '../../lib/types'
-import { formatBaht, formatDeliveryStatus, formatPaymentType, formatThaiDate } from '../../lib/format'
+import React, { useEffect, useState } from 'react'
+import type { DeliveryStatus, PaymentType, SaleWithItems } from '../../lib/types'
+import { calcCardFee, formatBaht, formatDeliveryStatus, formatThaiDate } from '../../lib/format'
 import { RefundDialog } from './RefundDialog'
 import { ExchangeDialog } from './ExchangeDialog'
 
@@ -10,12 +10,61 @@ interface OrderDetailProps {
   onPrint: (saleId: number) => void
   onRefundSuccess?: () => void
   onDeliveryStatusChange?: () => void
+  onPaymentTypeChange?: () => void
 }
 
-export function OrderDetail({ sale, loading, onPrint, onRefundSuccess, onDeliveryStatusChange }: OrderDetailProps) {
+const DEFAULT_CARD_FEE_PERCENT = 5
+const PAYMENT_OPTIONS: { value: PaymentType; label: string }[] = [
+  { value: 'cash', label: 'เงินสด' },
+  { value: 'card', label: 'บัตร' },
+  { value: 'transfer', label: 'โอนเงิน' },
+  { value: 'credit', label: 'เชื่อ' }
+]
+
+function paymentClassName(paymentType: PaymentType): string {
+  if (paymentType === 'credit') return 'text-orange-600'
+  if (paymentType === 'card') return 'text-blue-600'
+  if (paymentType === 'transfer') return 'text-cyan-600'
+  return 'text-gray-700'
+}
+
+export function OrderDetail({
+  sale,
+  loading,
+  onPrint,
+  onRefundSuccess,
+  onDeliveryStatusChange,
+  onPaymentTypeChange
+}: OrderDetailProps) {
   const [showRefund, setShowRefund] = useState(false)
   const [showExchange, setShowExchange] = useState(false)
   const [updatingDelivery, setUpdatingDelivery] = useState(false)
+  const [updatingPayment, setUpdatingPayment] = useState(false)
+  const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentType>('cash')
+  const [cardFeePercent, setCardFeePercent] = useState(DEFAULT_CARD_FEE_PERCENT)
+
+  useEffect(() => {
+    if (sale?.payment_type) {
+      setSelectedPaymentType(sale.payment_type)
+    }
+  }, [sale?.id, sale?.payment_type])
+
+  useEffect(() => {
+    let active = true
+    window.api.getSetting('card_fee_percent').then((value) => {
+      if (!active) return
+      const percent = value ? Number(value) : DEFAULT_CARD_FEE_PERCENT
+      setCardFeePercent(
+        Number.isFinite(percent) && percent >= 0 ? percent : DEFAULT_CARD_FEE_PERCENT
+      )
+    }).catch(() => {
+      if (active) setCardFeePercent(DEFAULT_CARD_FEE_PERCENT)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   if (loading) {
     return (
@@ -56,9 +105,34 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess, onDeliver
     }
   }
 
+  const handlePaymentTypeSave = async () => {
+    if (!sale || updatingPayment || selectedPaymentType === sale.payment_type) return
+
+    if (selectedPaymentType === 'credit' && !sale.customer_id) {
+      alert('ต้องมีลูกค้าก่อนจึงเปลี่ยนเป็นการเชื่อได้')
+      setSelectedPaymentType(sale.payment_type)
+      return
+    }
+
+    setUpdatingPayment(true)
+    try {
+      await window.api.updateSalePaymentType(sale.id, selectedPaymentType)
+      onPaymentTypeChange?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
+      alert(`อัปเดตวิธีชำระไม่สำเร็จ: ${message}`)
+      setSelectedPaymentType(sale.payment_type)
+    } finally {
+      setUpdatingPayment(false)
+    }
+  }
+
   const deliveryStatus = sale.delivery_status ?? 'none'
   const historyTotal = sale.items_total ?? sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - historyTotal)
+  const paymentChanged = selectedPaymentType !== sale.payment_type
+  const selectedCardFee = selectedPaymentType === 'card' ? calcCardFee(historyTotal, cardFeePercent) : 0
+  const selectedPaymentTotal = historyTotal + selectedCardFee
 
   return (
     <div className="p-4 space-y-4">
@@ -223,22 +297,62 @@ export function OrderDetail({ sale, loading, onPrint, onRefundSuccess, onDeliver
             {sale.customer_phone && <span className="text-blue-400 ml-2">{sale.customer_phone}</span>}
           </p>
         )}
-        {sale.payment_type && (
-          <p className="text-sm text-gray-500">
-            วิธีชำระ:{' '}
-            <span className={
-              sale.payment_type === 'credit'
-                ? 'text-orange-600 font-medium'
-                : sale.payment_type === 'card'
-                  ? 'text-blue-600'
-                  : sale.payment_type === 'transfer'
-                    ? 'text-cyan-600'
-                  : 'text-gray-700'
-            }>
-              {formatPaymentType(sale.payment_type)}
-            </span>
-          </p>
-        )}
+        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-500">วิธีชำระ:</span>
+            <select
+              value={selectedPaymentType}
+              onChange={(e) => setSelectedPaymentType(e.target.value as PaymentType)}
+              disabled={updatingPayment}
+              className={`rounded-lg border border-gray-300 px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 ${paymentClassName(selectedPaymentType)}`}
+            >
+              {PAYMENT_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.value === 'credit' && !sale.customer_id}
+                >
+                  {option.value === 'card'
+                    ? `${option.label} (+${cardFeePercent}%)`
+                    : option.label}
+                </option>
+              ))}
+            </select>
+            {paymentChanged && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePaymentTypeSave}
+                  disabled={updatingPayment}
+                  className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                >
+                  {updatingPayment ? 'กำลังบันทึก...' : 'บันทึก'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentType(sale.payment_type)}
+                  disabled={updatingPayment}
+                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+              </>
+            )}
+          </div>
+          {paymentChanged && selectedPaymentType === 'card' && (
+            <p className="mt-1 text-xs text-orange-600">
+              ค่าธรรมเนียมบัตร {formatBaht(selectedCardFee)} · ยอดชำระ {formatBaht(selectedPaymentTotal)}
+            </p>
+          )}
+          {paymentChanged && selectedPaymentType !== 'card' && cardFee > 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              จะตัดค่าธรรมเนียมบัตร {formatBaht(cardFee)} ออกจากยอดชำระ
+            </p>
+          )}
+          {!sale.customer_id && (
+            <p className="mt-1 text-xs text-gray-400">ต้องมีลูกค้าก่อนจึงเปลี่ยนเป็นเชื่อได้</p>
+          )}
+        </div>
         {sale.remark && (
           <p className="text-sm text-gray-500">
             หมายเหตุ: {sale.remark}

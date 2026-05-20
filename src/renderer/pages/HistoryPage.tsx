@@ -10,7 +10,13 @@ import type { DeliveryStatus, PaymentType, Product, SaleWithItems, Store } from 
 
 type FilterPreset = 'today' | 'yesterday' | 'month' | 'custom'
 type DeliveryFilter = DeliveryStatus | 'all'
-type PaymentFilter = PaymentType | 'all'
+
+const PAYMENT_FILTER_OPTIONS: { value: PaymentType; label: string }[] = [
+  { value: 'cash', label: 'เงินสด' },
+  { value: 'card', label: 'บัตร' },
+  { value: 'transfer', label: 'โอนเงิน' },
+  { value: 'credit', label: 'เชื่อ' }
+]
 
 export function HistoryPage() {
   const [preset, setPreset] = useState<FilterPreset>('today')
@@ -27,13 +33,16 @@ export function HistoryPage() {
   const [itemSearchLoading, setItemSearchLoading] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Product | null>(null)
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all')
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
+  const [paymentFilters, setPaymentFilters] = useState<PaymentType[]>([])
 
   const { isOwner } = useRole()
   const { sales, loading, profitSummary, fetchSales, fetchProfit, getSaleDetail } = useHistory()
   const selectedItemId = selectedItem?.id
   const selectedDeliveryStatus = deliveryFilter === 'all' ? undefined : deliveryFilter
-  const selectedPaymentType = paymentFilter === 'all' ? undefined : paymentFilter
+  const selectedPaymentTypes = paymentFilters.length > 0 ? paymentFilters : undefined
+  const selectedPaymentLabel = selectedPaymentTypes
+    ? selectedPaymentTypes.map(formatPaymentType).join(', ')
+    : null
   const paidRevenue = profitSummary?.total_paid_revenue ?? profitSummary?.total_revenue ?? 0
   const creditRevenue = profitSummary?.total_credit_revenue ?? 0
   const debtPayments = profitSummary?.total_debt_payments ?? 0
@@ -43,7 +52,7 @@ export function HistoryPage() {
     selectedStore ? selectedStore.name : null,
     selectedItem ? `สินค้า: ${selectedItem.name}` : null,
     selectedDeliveryStatus ? formatDeliveryStatus(selectedDeliveryStatus) : null,
-    selectedPaymentType ? `วิธีชำระ: ${formatPaymentType(selectedPaymentType)}` : null
+    selectedPaymentLabel ? `วิธีชำระ: ${selectedPaymentLabel}` : null
   ].filter(Boolean).join(' / ')
 
   useEffect(() => {
@@ -93,7 +102,7 @@ export function HistoryPage() {
   useEffect(() => {
     setSelectedId(null)
     setDetail(null)
-  }, [preset, customFrom, customTo, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType])
+  }, [preset, customFrom, customTo, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes])
 
   useEffect(() => {
     const range = getDateRange()
@@ -105,10 +114,10 @@ export function HistoryPage() {
       storeId: selectedStoreId,
       itemId: selectedItemId,
       deliveryStatus: selectedDeliveryStatus,
-      paymentType: selectedPaymentType
+      paymentTypes: selectedPaymentTypes
     })
-    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType)
-  }, [preset, customFrom, customTo, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentType, fetchSales, fetchProfit, getDateRange])
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes)
+  }, [preset, customFrom, customTo, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes, fetchSales, fetchProfit, getDateRange])
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -121,10 +130,10 @@ export function HistoryPage() {
         storeId: selectedStoreId,
         itemId: selectedItemId,
         deliveryStatus: selectedDeliveryStatus,
-        paymentType: selectedPaymentType
+        paymentTypes: selectedPaymentTypes
       })
     },
-    [fetchSales, getDateRange, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentType]
+    [fetchSales, getDateRange, selectedStoreId, pageSize, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes]
   )
 
   const handlePageSizeChange = useCallback(
@@ -161,7 +170,7 @@ export function HistoryPage() {
         storeId: selectedStoreId,
         itemId: selectedItemId,
         deliveryStatus: selectedDeliveryStatus,
-        paymentType: selectedPaymentType
+        paymentTypes: selectedPaymentTypes
       }
       const result = detailed
         ? await window.api.exportSalesDetail(params)
@@ -170,11 +179,11 @@ export function HistoryPage() {
         alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
       }
     },
-    [getDateRange, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType]
+    [getDateRange, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes]
   )
 
-  const handleRefundSuccess = useCallback(() => {
-    // Re-fetch the detail, sales list, and profit summary
+  const handleSaleChange = useCallback(() => {
+    // Re-fetch the detail, sales list, and profit summary after sale-level edits.
     if (selectedId) {
       handleSelect(selectedId)
     }
@@ -187,10 +196,10 @@ export function HistoryPage() {
       storeId: selectedStoreId,
       itemId: selectedItemId,
       deliveryStatus: selectedDeliveryStatus,
-      paymentType: selectedPaymentType
+      paymentTypes: selectedPaymentTypes
     })
-    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType)
-  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentType])
+    fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes)
+  }, [selectedId, handleSelect, fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes])
 
   const handleStoreChange = useCallback((value: string) => {
     setSelectedStoreId(value ? Number(value) : undefined)
@@ -203,6 +212,14 @@ export function HistoryPage() {
     setSelectedItem(product)
     setItemSearch('')
     setItemResults([])
+  }, [])
+
+  const togglePaymentFilter = useCallback((paymentType: PaymentType) => {
+    setPaymentFilters((current) =>
+      current.includes(paymentType)
+        ? current.filter((item) => item !== paymentType)
+        : [...current, paymentType]
+    )
   }, [])
 
   return (
@@ -255,17 +272,40 @@ export function HistoryPage() {
               <option value="none">รับหน้าร้าน</option>
             </select>
             <span className="text-sm text-gray-500">ชำระ:</span>
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="all">ทั้งหมด</option>
-              <option value="cash">เงินสด</option>
-              <option value="card">บัตร</option>
-              <option value="transfer">โอนเงิน</option>
-              <option value="credit">เชื่อ</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-gray-300 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setPaymentFilters([])}
+                className={`px-2 py-1 text-sm rounded-md transition-colors ${
+                  paymentFilters.length === 0
+                    ? 'bg-green-100 text-green-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                ทั้งหมด
+              </button>
+              {PAYMENT_FILTER_OPTIONS.map((option) => {
+                const checked = paymentFilters.includes(option.value)
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-sm rounded-md cursor-pointer transition-colors ${
+                      checked
+                        ? 'bg-green-50 text-green-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePaymentFilter(option.value)}
+                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
         </div>
         <DateRangeFilter
@@ -302,8 +342,10 @@ export function HistoryPage() {
                     ? 'ไม่พบรายการรอจัดส่งในช่วงเวลานี้'
                     : selectedDeliveryStatus === 'shipped'
                       ? 'ไม่พบรายการจัดส่งแล้วในช่วงเวลานี้'
-                      : selectedPaymentType
-                        ? `ไม่พบรายการชำระด้วย${formatPaymentType(selectedPaymentType)}ในช่วงเวลานี้`
+                      : selectedPaymentTypes
+                        ? selectedPaymentTypes.length === 1
+                          ? `ไม่พบรายการชำระด้วย${formatPaymentType(selectedPaymentTypes[0])}ในช่วงเวลานี้`
+                          : 'ไม่พบรายการตามวิธีชำระที่เลือกในช่วงเวลานี้'
                       : selectedItemId
                     ? 'ไม่พบรายการขายที่มีสินค้านี้ในช่วงเวลานี้'
                     : undefined
@@ -328,8 +370,9 @@ export function HistoryPage() {
             sale={detail}
             loading={detailLoading}
             onPrint={handlePrint}
-            onRefundSuccess={handleRefundSuccess}
-            onDeliveryStatusChange={handleRefundSuccess}
+            onRefundSuccess={handleSaleChange}
+            onDeliveryStatusChange={handleSaleChange}
+            onPaymentTypeChange={handleSaleChange}
           />
         </div>
       </div>
@@ -350,7 +393,7 @@ export function HistoryPage() {
             </div>
             {debtPayments > 0 && (
               <div>
-                <span className="text-sm text-gray-500">รับชำระหนี้</span>
+                <span className="text-sm text-gray-500">รับชำระ/มัดจำ</span>
                 <p className="text-lg font-semibold text-green-600">
                   {formatBaht(debtPayments)}
                 </p>

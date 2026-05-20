@@ -9,6 +9,18 @@ interface Props {
   onRefreshList: () => void
 }
 
+function formatCustomerPaymentKind(kind: CustomerPayment['payment_kind']): string {
+  if (kind === 'deposit') return 'มัดจำ'
+  if (kind === 'adjustment') return 'ปรับปรุงยอด'
+  return 'ชำระหนี้'
+}
+
+function customerPaymentClassName(kind: CustomerPayment['payment_kind']): string {
+  if (kind === 'deposit') return 'bg-blue-50 text-blue-700'
+  if (kind === 'adjustment') return 'bg-amber-50 text-amber-700'
+  return 'bg-green-50 text-green-700'
+}
+
 export function CustomerDetail({ customerId, onRefreshList }: Props) {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [debt, setDebt] = useState<DebtSummary | null>(null)
@@ -17,6 +29,7 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'history' | 'payments'>('history')
   const [showPayment, setShowPayment] = useState(false)
+  const [showDeposit, setShowDeposit] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [salesPage, setSalesPage] = useState(1)
 
@@ -79,6 +92,7 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
   }
 
   if (!customer) return null
+  const depositBalance = debt?.deposit_balance ?? Math.max(0, -(debt?.outstanding ?? 0))
 
   return (
     <div className="p-4 space-y-4 overflow-y-auto h-full">
@@ -99,32 +113,47 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
 
       {/* Debt summary */}
       {debt && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
             <p className="text-xs text-gray-500">ยอดเชื่อทั้งหมด</p>
             <p className="text-lg font-bold text-orange-600">{formatBaht(debt.total_credit)}</p>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            <p className="text-xs text-gray-500">ชำระแล้ว</p>
+            <p className="text-xs text-gray-500">ชำระ/มัดจำแล้ว</p>
             <p className="text-lg font-bold text-green-600">{formatBaht(debt.total_paid)}</p>
           </div>
           <div className={`${debt.outstanding > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'} border rounded-lg px-4 py-3`}>
             <p className="text-xs text-gray-500">ค้างชำระ</p>
             <p className={`text-lg font-bold ${debt.outstanding > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-              {formatBaht(debt.outstanding)}
+              {formatBaht(Math.max(0, debt.outstanding))}
+            </p>
+          </div>
+          <div className={`${depositBalance > 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} border rounded-lg px-4 py-3`}>
+            <p className="text-xs text-gray-500">มัดจำคงเหลือ</p>
+            <p className={`text-lg font-bold ${depositBalance > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+              {formatBaht(depositBalance)}
             </p>
           </div>
         </div>
       )}
 
-      {/* Record payment button */}
-      {debt && debt.outstanding > 0 && (
-        <button
-          onClick={() => setShowPayment(true)}
-          className="w-full px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors"
-        >
-          รับชำระหนี้
-        </button>
+      {/* Record money buttons */}
+      {debt && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setShowPayment(true)}
+            disabled={debt.outstanding <= 0}
+            className="px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            รับชำระหนี้
+          </button>
+          <button
+            onClick={() => setShowDeposit(true)}
+            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+          >
+            รับเงินมัดจำ
+          </button>
+        </div>
       )}
 
       {/* Tabs */}
@@ -147,7 +176,7 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          ประวัติการชำระ ({payments.length})
+          ประวัติการชำระ/มัดจำ ({payments.length})
         </button>
       </div>
 
@@ -191,13 +220,16 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
             <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีประวัติการชำระ</p>
           ) : (
             payments.map((p) => (
-              <div key={p.id} className="bg-green-50 rounded-lg px-4 py-3">
+              <div key={p.id} className={`${customerPaymentClassName(p.payment_kind)} rounded-lg px-4 py-3`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs text-gray-500">{formatThaiDate(p.date)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{formatThaiDate(p.date)}</span>
+                      <span className="text-xs font-medium">{formatCustomerPaymentKind(p.payment_kind)}</span>
+                    </div>
                     {p.note && <p className="text-xs text-gray-500 mt-0.5">{p.note}</p>}
                   </div>
-                  <span className="font-semibold text-green-700">+{formatBaht(p.amount)}</span>
+                  <span className="font-semibold">+{formatBaht(p.amount)}</span>
                 </div>
               </div>
             ))
@@ -212,7 +244,22 @@ export function CustomerDetail({ customerId, onRefreshList }: Props) {
           onClose={() => setShowPayment(false)}
           customerName={customer.name}
           outstanding={debt.outstanding}
+          depositBalance={depositBalance}
           customerId={customer.id}
+          mode="payment"
+          onSave={handlePaymentSaved}
+        />
+      )}
+
+      {debt && (
+        <PaymentDialog
+          open={showDeposit}
+          onClose={() => setShowDeposit(false)}
+          customerName={customer.name}
+          outstanding={debt.outstanding}
+          depositBalance={depositBalance}
+          customerId={customer.id}
+          mode="deposit"
           onSave={handlePaymentSaved}
         />
       )}

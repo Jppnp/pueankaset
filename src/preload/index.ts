@@ -43,19 +43,22 @@ const api = {
     itemId?: number
     deliveryStatus?: string
     paymentType?: string
+    paymentTypes?: string[]
   }) => ipcRenderer.invoke('sales:list', params),
   getSaleDetail: (id: number) => ipcRenderer.invoke('sales:detail', id),
   updateSaleDeliveryStatus: (id: number, deliveryStatus: string) =>
     ipcRenderer.invoke('sales:update-delivery-status', id, deliveryStatus),
+  updateSalePaymentType: (id: number, paymentType: string) =>
+    ipcRenderer.invoke('sales:update-payment-type', id, paymentType),
   getProfitSummary: (
     dateFrom?: string,
     dateTo?: string,
     storeId?: number,
     itemId?: number,
     deliveryStatus?: string,
-    paymentType?: string
+    paymentTypes?: string[]
   ) =>
-    ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentType),
+    ipcRenderer.invoke('sales:profit', dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentTypes),
 
   // Stores
   getStores: () => ipcRenderer.invoke('stores:list'),
@@ -96,21 +99,21 @@ const api = {
   getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) =>
     ipcRenderer.invoke('customers:purchase-history', params),
   getCustomersWithDebt: (query?: string) => ipcRenderer.invoke('customers:list-with-debt', query),
-  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) =>
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string; paymentKind?: string }) =>
     ipcRenderer.invoke('customer-payments:create', input),
   getCustomerPayments: (customerId: number) =>
     ipcRenderer.invoke('customer-payments:list', customerId),
 
   // Expenses
-  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string }) =>
+  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string; storeId?: number }) =>
     ipcRenderer.invoke('expenses:list', params),
-  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string }) =>
+  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string; storeId?: number }) =>
     ipcRenderer.invoke('expenses:create', input),
-  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string }) =>
+  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string; storeId?: number }) =>
     ipcRenderer.invoke('expenses:update', id, updates),
   deleteExpense: (id: number) => ipcRenderer.invoke('expenses:delete', id),
-  getExpenseSummary: (dateFrom: string, dateTo: string) =>
-    ipcRenderer.invoke('expenses:summary', { dateFrom, dateTo }),
+  getExpenseSummary: (dateFrom: string, dateTo: string, storeId?: number) =>
+    ipcRenderer.invoke('expenses:summary', { dateFrom, dateTo, storeId }),
 
   // Stock Movements
   getStockMovements: (params: { productId: number; page: number; pageSize: number; dateFrom?: string; dateTo?: string }) =>
@@ -153,6 +156,7 @@ const api = {
     itemId?: number
     deliveryStatus?: string
     paymentType?: string
+    paymentTypes?: string[]
   }) =>
     ipcRenderer.invoke('export:sales', params),
   exportSalesDetail: (params: {
@@ -162,11 +166,12 @@ const api = {
     itemId?: number
     deliveryStatus?: string
     paymentType?: string
+    paymentTypes?: string[]
   }) =>
     ipcRenderer.invoke('export:sales-detail', params),
   exportProducts: (storeId?: number, options?: Record<string, unknown>) =>
     ipcRenderer.invoke('export:products', storeId, options),
-  exportExpenses: (params: { dateFrom?: string; dateTo?: string }) =>
+  exportExpenses: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) =>
     ipcRenderer.invoke('export:expenses', params),
   exportCustomers: () => ipcRenderer.invoke('export:customers'),
 

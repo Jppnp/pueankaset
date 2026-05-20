@@ -5,7 +5,7 @@ import { ExpenseSummaryPanel } from '../components/expense/ExpenseSummaryPanel'
 import { Pagination } from '../components/shared/Pagination'
 import { useRole } from '../contexts/RoleContext'
 import { toISODate, thisMonthRange } from '../lib/format'
-import type { Expense, ExpenseSummary, PaginatedResult } from '../lib/types'
+import type { Expense, ExpenseSummary, PaginatedResult, Store } from '../lib/types'
 
 export function ExpensePage() {
   const { role } = useRole()
@@ -17,6 +17,8 @@ export function ExpensePage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
+  const [stores, setStores] = useState<Store[]>([])
+  const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined)
 
   // Default to current month
   const [dateFrom, setDateFrom] = useState(() => {
@@ -34,15 +36,19 @@ export function ExpensePage() {
       const from = `${dateFrom} 00:00:00`
       const to = `${dateTo} 23:59:59`
       const [expenseData, summaryData] = await Promise.all([
-        window.api.getExpenses({ page, pageSize, dateFrom: from, dateTo: to }),
-        window.api.getExpenseSummary(from, to)
+        window.api.getExpenses({ page, pageSize, dateFrom: from, dateTo: to, storeId: selectedStoreId }),
+        window.api.getExpenseSummary(from, to, selectedStoreId)
       ])
       setExpenses(expenseData)
       setSummary(summaryData)
     } finally {
       setLoading(false)
     }
-  }, [dateFrom, dateTo, pageSize])
+  }, [dateFrom, dateTo, pageSize, selectedStoreId])
+
+  useEffect(() => {
+    window.api.getStores().then(setStores)
+  }, [])
 
   useEffect(() => {
     fetchData()
@@ -70,11 +76,11 @@ export function ExpensePage() {
   const handleExport = useCallback(async () => {
     const from = `${dateFrom} 00:00:00`
     const to = `${dateTo} 23:59:59`
-    const result = await window.api.exportExpenses({ dateFrom: from, dateTo: to })
+    const result = await window.api.exportExpenses({ dateFrom: from, dateTo: to, storeId: selectedStoreId })
     if (result.success) {
       alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)
     }
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, selectedStoreId])
 
   return (
     <div className="flex flex-col h-full">
@@ -97,7 +103,18 @@ export function ExpensePage() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm text-gray-500">ร้านค้า:</label>
+          <select
+            value={selectedStoreId ?? ''}
+            onChange={(e) => setSelectedStoreId(e.target.value ? Number(e.target.value) : undefined)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">ทุกร้านค้า</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
           <label className="text-sm text-gray-500">ตั้งแต่:</label>
           <input
             type="date"
@@ -153,6 +170,8 @@ export function ExpensePage() {
         expense={editExpense}
         onSave={handleSaved}
         createdBy={role ?? 'owner'}
+        stores={stores}
+        defaultStoreId={selectedStoreId}
       />
     </div>
   )

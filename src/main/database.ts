@@ -246,6 +246,16 @@ ALTER TABLE sales ADD COLUMN delivery_status TEXT NOT NULL DEFAULT 'none';
 
 CREATE INDEX IF NOT EXISTS idx_sales_delivery_status ON sales(delivery_status);
 `
+  },
+  {
+    version: 13,
+    sql: `
+ALTER TABLE expenses ADD COLUMN store_id INTEGER NOT NULL DEFAULT 1;
+
+UPDATE expenses SET store_id = 1 WHERE store_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_expenses_store_id ON expenses(store_id);
+`
   }
 ]
 

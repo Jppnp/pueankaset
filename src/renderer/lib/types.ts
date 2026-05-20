@@ -97,6 +97,7 @@ export interface CustomerWithDebt extends Customer {
   total_credit: number
   total_paid: number
   outstanding: number
+  deposit_balance?: number
 }
 
 export interface CustomerPayment {
@@ -105,7 +106,7 @@ export interface CustomerPayment {
   amount: number
   date: string
   note: string | null
-  payment_kind?: 'payment' | 'adjustment'
+  payment_kind?: 'payment' | 'deposit' | 'adjustment'
   created_at: string
 }
 
@@ -113,6 +114,7 @@ export interface DebtSummary {
   total_credit: number
   total_paid: number
   outstanding: number
+  deposit_balance?: number
 }
 
 export interface Sale {
@@ -282,6 +284,8 @@ export interface Expense {
   description: string | null
   date: string
   created_by: string
+  store_id: number
+  store_name?: string | null
   created_at: string
 }
 
@@ -358,6 +362,14 @@ export interface AddSaleItemResult {
   total: number
 }
 
+export interface UpdateSalePaymentTypeResult {
+  success: boolean
+  paymentType: PaymentType
+  totalAmount: number
+  itemsTotal: number
+  cardFeeAmount: number
+}
+
 // IPC API type for contextBridge
 export interface ElectronAPI {
   // Products
@@ -383,16 +395,18 @@ export interface ElectronAPI {
     itemId?: number
     deliveryStatus?: DeliveryStatus
     paymentType?: PaymentType
+    paymentTypes?: PaymentType[]
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
   updateSaleDeliveryStatus: (id: number, deliveryStatus: DeliveryStatus) => Promise<{ success: boolean; deliveryStatus: DeliveryStatus }>
+  updateSalePaymentType: (id: number, paymentType: PaymentType) => Promise<UpdateSalePaymentTypeResult>
   getProfitSummary: (
     dateFrom?: string,
     dateTo?: string,
     storeId?: number,
     itemId?: number,
     deliveryStatus?: DeliveryStatus,
-    paymentType?: PaymentType
+    paymentTypes?: PaymentType[]
   ) => Promise<ProfitSummary>
 
   // Customers
@@ -405,7 +419,7 @@ export interface ElectronAPI {
   getCustomerDebtSummary: (id: number) => Promise<DebtSummary>
   getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) => Promise<PaginatedResult<Sale>>
   getCustomersWithDebt: (query?: string) => Promise<CustomerWithDebt[]>
-  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) => Promise<CustomerPayment>
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string; paymentKind?: 'payment' | 'deposit' }) => Promise<CustomerPayment>
   getCustomerPayments: (customerId: number) => Promise<CustomerPayment[]>
 
   // Refunds
@@ -413,11 +427,11 @@ export interface ElectronAPI {
   getRefundsBySale: (saleId: number) => Promise<RefundWithItems[]>
 
   // Expenses
-  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string }) => Promise<PaginatedResult<Expense>>
-  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string }) => Promise<Expense>
-  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string }) => Promise<Expense>
+  getExpenses: (params: { page: number; pageSize: number; dateFrom?: string; dateTo?: string; category?: string; storeId?: number }) => Promise<PaginatedResult<Expense>>
+  createExpense: (input: { category: string; amount: number; description?: string; date?: string; createdBy: string; storeId?: number }) => Promise<Expense>
+  updateExpense: (id: number, updates: { category?: string; amount?: number; description?: string; date?: string; storeId?: number }) => Promise<Expense>
   deleteExpense: (id: number) => Promise<{ success: boolean }>
-  getExpenseSummary: (dateFrom: string, dateTo: string) => Promise<ExpenseSummary>
+  getExpenseSummary: (dateFrom: string, dateTo: string, storeId?: number) => Promise<ExpenseSummary>
 
   // Stock Movements
   getStockMovements: (params: {
@@ -482,6 +496,7 @@ export interface ElectronAPI {
     itemId?: number
     deliveryStatus?: DeliveryStatus
     paymentType?: PaymentType
+    paymentTypes?: PaymentType[]
   }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportSalesDetail: (params: {
     dateFrom?: string
@@ -490,9 +505,10 @@ export interface ElectronAPI {
     itemId?: number
     deliveryStatus?: DeliveryStatus
     paymentType?: PaymentType
+    paymentTypes?: PaymentType[]
   }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportProducts: (storeId?: number, options?: ProductListOptions) => Promise<{ success: boolean; path?: string; error?: string }>
-  exportExpenses: (params: { dateFrom?: string; dateTo?: string }) => Promise<{ success: boolean; path?: string; error?: string }>
+  exportExpenses: (params: { dateFrom?: string; dateTo?: string; storeId?: number }) => Promise<{ success: boolean; path?: string; error?: string }>
   exportCustomers: () => Promise<{ success: boolean; path?: string; error?: string }>
 
   // Settings

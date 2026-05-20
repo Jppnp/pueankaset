@@ -22,6 +22,7 @@ export function useHistory() {
       itemId?: number
       deliveryStatus?: DeliveryStatus
       paymentType?: PaymentType
+      paymentTypes?: PaymentType[]
     }) => {
       setLoading(true)
       setError(null)
@@ -34,7 +35,8 @@ export function useHistory() {
           storeId: params.storeId,
           itemId: params.itemId,
           deliveryStatus: params.deliveryStatus,
-          paymentType: params.paymentType
+          paymentType: params.paymentType,
+          paymentTypes: params.paymentTypes
         })
         setSales(result)
       } catch (err) {
@@ -52,10 +54,10 @@ export function useHistory() {
     storeId?: number,
     itemId?: number,
     deliveryStatus?: DeliveryStatus,
-    paymentType?: PaymentType
+    paymentTypes?: PaymentType[]
   ) => {
     try {
-      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentType)
+      const result = await window.api.getProfitSummary(dateFrom, dateTo, storeId, itemId, deliveryStatus, paymentTypes)
       setProfitSummary(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลกำไร')

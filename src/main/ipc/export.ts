@@ -38,8 +38,23 @@ function toDeliveryStatusFilter(value: unknown): DeliveryStatus | undefined {
   return DELIVERY_STATUSES.includes(value as DeliveryStatus) ? value as DeliveryStatus : undefined
 }
 
-function toPaymentTypeFilter(value: unknown): PaymentType | undefined {
-  return PAYMENT_TYPES.includes(value as PaymentType) ? value as PaymentType : undefined
+function toPaymentTypeFilters(value: unknown): PaymentType[] {
+  const rawValues = Array.isArray(value) ? value : value ? [value] : []
+  const paymentTypes = rawValues.filter((item): item is PaymentType =>
+    PAYMENT_TYPES.includes(item as PaymentType)
+  )
+  return Array.from(new Set(paymentTypes))
+}
+
+function addInCondition(
+  conditions: string[],
+  params: unknown[],
+  column: string,
+  values: unknown[]
+): void {
+  if (values.length === 0) return
+  conditions.push(`${column} IN (${values.map(() => '?').join(', ')})`)
+  params.push(...values)
 }
 
 function escapeCsv(val: unknown): string {
@@ -87,6 +102,7 @@ export function registerExportHandlers(): void {
         itemId?: number | string
         deliveryStatus?: DeliveryStatus
         paymentType?: PaymentType
+        paymentTypes?: PaymentType[]
       }
     ) => {
       const db = getDb()
@@ -94,7 +110,7 @@ export function registerExportHandlers(): void {
       const whereParams: unknown[] = []
       const itemId = toPositiveInteger(params.itemId)
       const deliveryStatus = toDeliveryStatusFilter(params.deliveryStatus)
-      const paymentType = toPaymentTypeFilter(params.paymentType)
+      const paymentTypes = toPaymentTypeFilters(params.paymentTypes ?? params.paymentType)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -129,10 +145,7 @@ export function registerExportHandlers(): void {
         conditions.push('s.delivery_status = ?')
         whereParams.push(deliveryStatus)
       }
-      if (paymentType) {
-        conditions.push('s.payment_type = ?')
-        whereParams.push(paymentType)
-      }
+      addInCondition(conditions, whereParams, 's.payment_type', paymentTypes)
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
@@ -218,6 +231,7 @@ export function registerExportHandlers(): void {
         itemId?: number | string
         deliveryStatus?: DeliveryStatus
         paymentType?: PaymentType
+        paymentTypes?: PaymentType[]
       }
     ) => {
       const db = getDb()
@@ -225,7 +239,7 @@ export function registerExportHandlers(): void {
       const whereParams: unknown[] = []
       const itemId = toPositiveInteger(params.itemId)
       const deliveryStatus = toDeliveryStatusFilter(params.deliveryStatus)
-      const paymentType = toPaymentTypeFilter(params.paymentType)
+      const paymentTypes = toPaymentTypeFilters(params.paymentTypes ?? params.paymentType)
 
       if (params.dateFrom) {
         conditions.push('s.date >= ?')
@@ -247,10 +261,7 @@ export function registerExportHandlers(): void {
         conditions.push('s.delivery_status = ?')
         whereParams.push(deliveryStatus)
       }
-      if (paymentType) {
-        conditions.push('s.payment_type = ?')
-        whereParams.push(paymentType)
-      }
+      addInCondition(conditions, whereParams, 's.payment_type', paymentTypes)
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
@@ -400,24 +411,34 @@ export function registerExportHandlers(): void {
   // Export expenses
   ipcMain.handle(
     'export:expenses',
-    async (_event, params: { dateFrom?: string; dateTo?: string }) => {
+    async (_event, params: { dateFrom?: string; dateTo?: string; storeId?: number }) => {
       const db = getDb()
       const conditions: string[] = []
       const whereParams: unknown[] = []
 
       if (params.dateFrom) {
-        conditions.push('date >= ?')
+        conditions.push('e.date >= ?')
         whereParams.push(params.dateFrom)
       }
       if (params.dateTo) {
-        conditions.push('date <= ?')
+        conditions.push('e.date <= ?')
         whereParams.push(params.dateTo)
+      }
+      if (params.storeId) {
+        conditions.push('e.store_id = ?')
+        whereParams.push(params.storeId)
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
       const expenses = db
-        .prepare(`SELECT * FROM expenses ${where} ORDER BY date DESC`)
+        .prepare(
+          `SELECT e.*, s.name as store_name
+           FROM expenses e
+           LEFT JOIN stores s ON s.id = e.store_id
+           ${where}
+           ORDER BY e.date DESC`
+        )
         .all(...whereParams) as {
         id: number
         category: string
@@ -425,11 +446,12 @@ export function registerExportHandlers(): void {
         description: string | null
         date: string
         created_by: string
+        store_name: string | null
       }[]
 
-      const header = toCsvRow(['เลขที่', 'วันที่', 'หมวดหมู่', 'จำนวนเงิน', 'รายละเอียด', 'ผู้บันทึก'])
+      const header = toCsvRow(['เลขที่', 'วันที่', 'ร้านค้า', 'หมวดหมู่', 'จำนวนเงิน', 'รายละเอียด', 'ผู้บันทึก'])
       const rows = expenses.map((e) =>
-        toCsvRow([e.id, e.date, e.category, e.amount, e.description, e.created_by])
+        toCsvRow([e.id, e.date, e.store_name, e.category, e.amount, e.description, e.created_by])
       )
 
       const csv = [header, ...rows].join('\n')
@@ -446,7 +468,12 @@ export function registerExportHandlers(): void {
         `SELECT c.*,
           COALESCE(credit.total, 0) as total_credit,
           COALESCE(paid.total, 0) as total_paid,
-          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding
+          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding,
+          CASE
+            WHEN COALESCE(paid.total, 0) > COALESCE(credit.total, 0)
+            THEN COALESCE(paid.total, 0) - COALESCE(credit.total, 0)
+            ELSE 0
+          END as deposit_balance
         FROM customers c
         LEFT JOIN (
           SELECT customer_id, SUM(total_amount) as total
@@ -468,6 +495,7 @@ export function registerExportHandlers(): void {
       total_credit: number
       total_paid: number
       outstanding: number
+      deposit_balance: number
     }[]
 
     const header = toCsvRow([
@@ -476,8 +504,9 @@ export function registerExportHandlers(): void {
       'เบอร์โทร',
       'ที่อยู่',
       'ยอดเชื่อทั้งหมด',
-      'ชำระแล้ว',
-      'คงค้าง'
+      'ชำระ/มัดจำแล้ว',
+      'คงค้าง',
+      'มัดจำคงเหลือ'
     ])
     const rows = customers.map((c) =>
       toCsvRow([
@@ -487,7 +516,8 @@ export function registerExportHandlers(): void {
         c.address,
         c.total_credit,
         c.total_paid,
-        c.outstanding
+        Math.max(0, c.outstanding),
+        c.deposit_balance
       ])
     )
 
