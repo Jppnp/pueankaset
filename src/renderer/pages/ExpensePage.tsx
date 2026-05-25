@@ -4,7 +4,7 @@ import { ExpenseForm } from '../components/expense/ExpenseForm'
 import { ExpenseSummaryPanel } from '../components/expense/ExpenseSummaryPanel'
 import { Pagination } from '../components/shared/Pagination'
 import { useRole } from '../contexts/RoleContext'
-import { toISODate, thisMonthRange } from '../lib/format'
+import { localRangeUtc, toISODate } from '../lib/format'
 import type { Expense, ExpenseSummary, PaginatedResult, Store } from '../lib/types'
 
 export function ExpensePage() {
@@ -20,21 +20,20 @@ export function ExpensePage() {
   const [stores, setStores] = useState<Store[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined)
 
-  // Default to current month
+  // Default to current month (Thai-local calendar)
   const [dateFrom, setDateFrom] = useState(() => {
-    const range = thisMonthRange()
-    return range.from.split(' ')[0]
+    const now = new Date()
+    return toISODate(new Date(now.getFullYear(), now.getMonth(), 1))
   })
   const [dateTo, setDateTo] = useState(() => {
-    const range = thisMonthRange()
-    return range.to.split(' ')[0]
+    const now = new Date()
+    return toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
   })
 
   const fetchData = useCallback(async (page = 1) => {
     setLoading(true)
     try {
-      const from = `${dateFrom} 00:00:00`
-      const to = `${dateTo} 23:59:59`
+      const { from, to } = localRangeUtc(dateFrom, dateTo)
       const [expenseData, summaryData] = await Promise.all([
         window.api.getExpenses({ page, pageSize, dateFrom: from, dateTo: to, storeId: selectedStoreId }),
         window.api.getExpenseSummary(from, to, selectedStoreId)
@@ -74,8 +73,7 @@ export function ExpensePage() {
   }
 
   const handleExport = useCallback(async () => {
-    const from = `${dateFrom} 00:00:00`
-    const to = `${dateTo} 23:59:59`
+    const { from, to } = localRangeUtc(dateFrom, dateTo)
     const result = await window.api.exportExpenses({ dateFrom: from, dateTo: to, storeId: selectedStoreId })
     if (result.success) {
       alert(`บันทึกไฟล์สำเร็จ: ${result.path}`)

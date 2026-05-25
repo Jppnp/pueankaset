@@ -4,7 +4,7 @@ import { TopProductsTable } from '../components/dashboard/TopProductsTable'
 import { LowStockAlerts } from '../components/dashboard/LowStockAlerts'
 import { RevenueTrendChart } from '../components/dashboard/RevenueTrendChart'
 import { useDashboard } from '../hooks/useDashboard'
-import { todayRange, toISODate } from '../lib/format'
+import { localRangeUtc, todayRange, toISODate } from '../lib/format'
 import type { Store } from '../lib/types'
 
 const TREND_DAYS = 7
@@ -13,10 +13,7 @@ function getTrendRange(days: number): { from: string; to: string } {
   const today = new Date()
   const from = new Date(today)
   from.setDate(from.getDate() - (days - 1))
-  return {
-    from: `${toISODate(from)} 00:00:00`,
-    to: `${toISODate(today)} 23:59:59`
-  }
+  return localRangeUtc(toISODate(from), toISODate(today))
 }
 
 export function DashboardPage() {

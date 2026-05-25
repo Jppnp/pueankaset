@@ -4,7 +4,7 @@ import { OrderList } from '../components/history/OrderList'
 import { OrderDetail } from '../components/history/OrderDetail'
 import { Pagination } from '../components/shared/Pagination'
 import { useHistory } from '../hooks/useHistory'
-import { formatBaht, formatDeliveryStatus, formatPaymentType, todayRange, thisMonthRange, toISODate, yesterdayRange } from '../lib/format'
+import { formatBaht, formatDeliveryStatus, formatPaymentType, localRangeUtc, todayRange, thisMonthRange, toISODate, yesterdayRange } from '../lib/format'
 import { useRole } from '../contexts/RoleContext'
 import type { DeliveryStatus, PaymentType, Product, SaleWithItems, Store } from '../lib/types'
 
@@ -92,10 +92,7 @@ export function HistoryPage() {
       case 'month':
         return thisMonthRange()
       case 'custom':
-        return {
-          from: `${customFrom} 00:00:00`,
-          to: `${customTo} 23:59:59`
-        }
+        return localRangeUtc(customFrom, customTo)
     }
   }, [preset, customFrom, customTo])
 

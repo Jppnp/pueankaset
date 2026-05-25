@@ -102,35 +102,58 @@ export function toISODate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// Asia/Bangkok is UTC+7 year-round (no DST).
+const THAI_OFFSET_MS = 7 * 60 * 60 * 1000
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0')
+}
+
+// Convert a Thai-local "YYYY-MM-DD HH:MM:SS" wall-clock string into the UTC
+// "YYYY-MM-DD HH:MM:SS" form that SQLite's datetime('now') produces, so it can
+// be compared against stored UTC timestamps with plain string >=/<=.
+function thaiLocalToUtcSql(local: string): string {
+  const asUtc = new Date(`${local.replace(' ', 'T')}Z`)
+  const utc = new Date(asUtc.getTime() - THAI_OFFSET_MS)
+  return (
+    `${utc.getUTCFullYear()}-${pad2(utc.getUTCMonth() + 1)}-${pad2(utc.getUTCDate())} ` +
+    `${pad2(utc.getUTCHours())}:${pad2(utc.getUTCMinutes())}:${pad2(utc.getUTCSeconds())}`
+  )
+}
+
+// Build UTC SQL bounds for a Thai-local calendar day ("YYYY-MM-DD").
+export function localDayRangeUtc(localDay: string): { from: string; to: string } {
+  return {
+    from: thaiLocalToUtcSql(`${localDay} 00:00:00`),
+    to: thaiLocalToUtcSql(`${localDay} 23:59:59`)
+  }
+}
+
+// Build UTC SQL bounds spanning multiple Thai-local calendar days.
+export function localRangeUtc(fromDay: string, toDay: string): { from: string; to: string } {
+  return {
+    from: thaiLocalToUtcSql(`${fromDay} 00:00:00`),
+    to: thaiLocalToUtcSql(`${toDay} 23:59:59`)
+  }
+}
+
 export function todayRange(): { from: string; to: string } {
-  const today = toISODate(new Date())
-  return { from: `${today} 00:00:00`, to: `${today} 23:59:59` }
+  return localDayRangeUtc(toISODate(new Date()))
 }
 
 export function yesterdayRange(): { from: string; to: string } {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  const date = toISODate(yesterday)
-  return { from: `${date} 00:00:00`, to: `${date} 23:59:59` }
+  return localDayRangeUtc(toISODate(yesterday))
 }
 
 export function monthRange(year: number, month: number): { from: string; to: string } {
   const lastDay = new Date(year, month + 1, 0).getDate()
-  const mm = (month + 1).toString().padStart(2, '0')
-  return {
-    from: `${year}-${mm}-01 00:00:00`,
-    to: `${year}-${mm}-${lastDay.toString().padStart(2, '0')} 23:59:59`
-  }
+  const mm = pad2(month + 1)
+  return localRangeUtc(`${year}-${mm}-01`, `${year}-${mm}-${pad2(lastDay)}`)
 }
 
 export function thisMonthRange(): { from: string; to: string } {
   const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  const lastDay = new Date(year, month + 1, 0).getDate()
-  const mm = (month + 1).toString().padStart(2, '0')
-  return {
-    from: `${year}-${mm}-01 00:00:00`,
-    to: `${year}-${mm}-${lastDay.toString().padStart(2, '0')} 23:59:59`
-  }
+  return monthRange(now.getFullYear(), now.getMonth())
 }
