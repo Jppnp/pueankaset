@@ -20,6 +20,17 @@ function toPositiveInteger(value: unknown): number | undefined {
   return numeric !== undefined && Number.isInteger(numeric) && numeric > 0 ? numeric : undefined
 }
 
+export function requirePositiveQuantity(value: unknown, label = 'จำนวน'): number {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error(`${label}ต้องมากกว่า 0`)
+  }
+  if (!Number.isInteger(numeric)) {
+    throw new Error(`${label}ต้องเป็นจำนวนเต็ม`)
+  }
+  return numeric
+}
+
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
 }
@@ -114,6 +125,13 @@ export function registerSaleHandlers(): void {
 
       if (paymentType === 'credit' && !input.customerId) {
         throw new Error('ต้องเลือกลูกค้าก่อนใช้การเชื่อ')
+      }
+
+      if (!Array.isArray(input.items) || input.items.length === 0) {
+        throw new Error('ไม่มีรายการสินค้า')
+      }
+      for (const item of input.items) {
+        requirePositiveQuantity(item.quantity, 'จำนวนสินค้า')
       }
 
       const db = getDb()
@@ -670,7 +688,7 @@ export function registerSaleHandlers(): void {
 
       let total_debt_payments = 0
       if (!storeId && !itemId && !deliveryStatus && paymentTypes.length === 0) {
-        const paymentConditions: string[] = ["payment_kind IN ('payment', 'deposit')"]
+        const paymentConditions: string[] = ["payment_kind = 'payment'"]
         const paymentParams: unknown[] = []
         if (dateFrom) { paymentConditions.push('date >= ?'); paymentParams.push(dateFrom) }
         if (dateTo) { paymentConditions.push('date <= ?'); paymentParams.push(dateTo) }

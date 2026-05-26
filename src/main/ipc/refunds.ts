@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
 import { insertStockMovement } from './stock-movements'
+import { requirePositiveQuantity } from './sales'
 
 export function registerRefundHandlers(): void {
   ipcMain.handle(
@@ -41,7 +42,7 @@ export function registerRefundHandlers(): void {
         }[] = []
 
         for (const item of input.items) {
-          if (item.quantity <= 0) continue
+          requirePositiveQuantity(item.quantity, 'จำนวนที่คืน')
 
           const saleItem = db
             .prepare('SELECT * FROM sale_items WHERE id = ? AND sale_id = ?')

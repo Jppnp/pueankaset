@@ -99,7 +99,7 @@ const api = {
   getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) =>
     ipcRenderer.invoke('customers:purchase-history', params),
   getCustomersWithDebt: (query?: string) => ipcRenderer.invoke('customers:list-with-debt', query),
-  createCustomerPayment: (input: { customerId: number; amount: number; note?: string; paymentKind?: string }) =>
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) =>
     ipcRenderer.invoke('customer-payments:create', input),
   getCustomerPayments: (customerId: number) =>
     ipcRenderer.invoke('customer-payments:list', customerId),

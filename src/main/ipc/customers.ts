@@ -1,16 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
 
-type CustomerPaymentKind = 'payment' | 'deposit'
-
-const CUSTOMER_PAYMENT_KINDS: CustomerPaymentKind[] = ['payment', 'deposit']
-
-function normalizeCustomerPaymentKind(value: unknown): CustomerPaymentKind {
-  return CUSTOMER_PAYMENT_KINDS.includes(value as CustomerPaymentKind)
-    ? value as CustomerPaymentKind
-    : 'payment'
-}
-
 export function registerCustomerHandlers(): void {
   // List/search customers
   ipcMain.handle('customers:list', (_event, query?: string) => {
@@ -125,8 +115,7 @@ export function registerCustomerHandlers(): void {
     return {
       total_credit: credit.total,
       total_paid: paid.total,
-      outstanding: credit.total - paid.total,
-      deposit_balance: Math.max(0, paid.total - credit.total)
+      outstanding: credit.total - paid.total
     }
   })
 
@@ -169,12 +158,7 @@ export function registerCustomerHandlers(): void {
         `SELECT c.*,
           COALESCE(credit.total, 0) as total_credit,
           COALESCE(paid.total, 0) as total_paid,
-          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding,
-          CASE
-            WHEN COALESCE(paid.total, 0) > COALESCE(credit.total, 0)
-            THEN COALESCE(paid.total, 0) - COALESCE(credit.total, 0)
-            ELSE 0
-          END as deposit_balance
+          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding
         FROM customers c
         LEFT JOIN (
           SELECT customer_id, SUM(total_amount) as total
@@ -195,21 +179,18 @@ export function registerCustomerHandlers(): void {
   // Record a debt repayment
   ipcMain.handle(
     'customer-payments:create',
-    (_event, input: { customerId: number; amount: number; note?: string; paymentKind?: CustomerPaymentKind }) => {
+    (_event, input: { customerId: number; amount: number; note?: string }) => {
       if (!input.amount || input.amount <= 0) throw new Error('จำนวนเงินต้องมากกว่า 0')
 
       const db = getDb()
       const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(input.customerId)
       if (!customer) throw new Error('ไม่พบลูกค้า')
 
-      const paymentKind = normalizeCustomerPaymentKind(input.paymentKind)
-      const defaultNote = paymentKind === 'deposit' ? 'รับเงินมัดจำ' : null
-
       const result = db
         .prepare(
-          'INSERT INTO customer_payments (customer_id, amount, note, payment_kind) VALUES (?, ?, ?, ?)'
+          "INSERT INTO customer_payments (customer_id, amount, note, payment_kind) VALUES (?, ?, ?, 'payment')"
         )
-        .run(input.customerId, input.amount, input.note?.trim() || defaultNote, paymentKind)
+        .run(input.customerId, input.amount, input.note?.trim() || null)
 
       return db
         .prepare('SELECT * FROM customer_payments WHERE id = ?')

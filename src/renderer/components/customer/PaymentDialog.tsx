@@ -7,10 +7,8 @@ interface Props {
   onClose: () => void
   customerName: string
   outstanding: number
-  depositBalance?: number
   onSave: () => void
   customerId: number
-  mode?: 'payment' | 'deposit'
 }
 
 export function PaymentDialog({
@@ -18,16 +16,13 @@ export function PaymentDialog({
   onClose,
   customerName,
   outstanding,
-  depositBalance = 0,
   onSave,
-  customerId,
-  mode = 'payment'
+  customerId
 }: Props) {
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const isDeposit = mode === 'deposit'
 
   useEffect(() => {
     if (open) {
@@ -50,8 +45,7 @@ export function PaymentDialog({
       await window.api.createCustomerPayment({
         customerId,
         amount: num,
-        note: note.trim() || undefined,
-        paymentKind: mode
+        note: note.trim() || undefined
       })
       onSave()
       onClose()
@@ -69,28 +63,22 @@ export function PaymentDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={isDeposit ? 'รับเงินมัดจำ' : 'รับชำระหนี้'}>
+    <Modal open={open} onClose={onClose} title="รับชำระหนี้">
       <div className="space-y-4">
         {error && (
           <div className="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2">{error}</div>
         )}
-        <div className={`${isDeposit ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'} border rounded-lg px-4 py-3`}>
+        <div className="bg-orange-50 border-orange-200 border rounded-lg px-4 py-3">
           <p className="text-sm text-gray-700">
             ลูกค้า: <span className="font-medium">{customerName}</span>
           </p>
-          {isDeposit ? (
-            <p className="text-sm text-blue-700 mt-1">
-              มัดจำคงเหลือเดิม: <span className="font-bold">{formatBaht(depositBalance)}</span>
-            </p>
-          ) : (
-            <p className="text-sm text-orange-700 mt-1">
-              ยอดค้างชำระ: <span className="font-bold">{formatBaht(Math.max(0, outstanding))}</span>
-            </p>
-          )}
+          <p className="text-sm text-orange-700 mt-1">
+            ยอดค้างชำระ: <span className="font-bold">{formatBaht(Math.max(0, outstanding))}</span>
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isDeposit ? 'จำนวนเงินมัดจำ *' : 'จำนวนเงินที่รับ *'}
+            จำนวนเงินที่รับ *
           </label>
           <div className="flex gap-2">
             <input
@@ -103,7 +91,7 @@ export function PaymentDialog({
               step="0.01"
               autoFocus
             />
-            {!isDeposit && outstanding > 0 && (
+            {outstanding > 0 && (
               <button
                 onClick={handlePayAll}
                 className="px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors whitespace-nowrap"
@@ -120,7 +108,7 @@ export function PaymentDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            placeholder={isDeposit ? 'เช่น มัดจำล่วงหน้า, โอนเงิน' : 'เช่น รับเงินสด, โอนเงิน'}
+            placeholder="เช่น รับเงินสด, โอนเงิน"
           />
         </div>
         <div className="flex gap-2 pt-2">
@@ -133,11 +121,9 @@ export function PaymentDialog({
           <button
             onClick={handleSave}
             disabled={saving}
-            className={`flex-[2] px-4 py-2.5 text-white rounded-xl font-medium transition-colors disabled:opacity-50 ${
-              isDeposit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-            }`}
+            className="flex-[2] px-4 py-2.5 text-white rounded-xl font-medium transition-colors disabled:opacity-50 bg-green-600 hover:bg-green-700"
           >
-            {saving ? 'กำลังบันทึก...' : isDeposit ? 'บันทึกเงินมัดจำ' : 'บันทึกการรับเงิน'}
+            {saving ? 'กำลังบันทึก...' : 'บันทึกการรับเงิน'}
           </button>
         </div>
       </div>

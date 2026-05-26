@@ -19,7 +19,6 @@ export function CustomerList({ customers, selectedId, onSelect, onPrintDebt }: P
   return (
     <div className="divide-y">
       {customers.map((c) => {
-        const depositBalance = c.deposit_balance ?? Math.max(0, -c.outstanding)
         return (
           <div
             key={c.id}
@@ -47,12 +46,7 @@ export function CustomerList({ customers, selectedId, onSelect, onPrintDebt }: P
                     ค้าง {formatBaht(c.outstanding)}
                   </span>
                 )}
-                {depositBalance > 0 && (
-                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    มัดจำ {formatBaht(depositBalance)}
-                  </span>
-                )}
-                {c.outstanding <= 0 && depositBalance === 0 && c.total_credit > 0 && (
+                {c.outstanding <= 0 && c.total_credit > 0 && (
                   <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                     ชำระครบ
                   </span>

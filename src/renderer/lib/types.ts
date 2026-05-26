@@ -97,7 +97,6 @@ export interface CustomerWithDebt extends Customer {
   total_credit: number
   total_paid: number
   outstanding: number
-  deposit_balance?: number
 }
 
 export interface CustomerPayment {
@@ -106,7 +105,7 @@ export interface CustomerPayment {
   amount: number
   date: string
   note: string | null
-  payment_kind?: 'payment' | 'deposit' | 'adjustment'
+  payment_kind?: 'payment' | 'adjustment'
   created_at: string
 }
 
@@ -114,7 +113,6 @@ export interface DebtSummary {
   total_credit: number
   total_paid: number
   outstanding: number
-  deposit_balance?: number
 }
 
 export interface Sale {
@@ -419,7 +417,7 @@ export interface ElectronAPI {
   getCustomerDebtSummary: (id: number) => Promise<DebtSummary>
   getCustomerPurchaseHistory: (params: { customerId: number; page: number; pageSize: number }) => Promise<PaginatedResult<Sale>>
   getCustomersWithDebt: (query?: string) => Promise<CustomerWithDebt[]>
-  createCustomerPayment: (input: { customerId: number; amount: number; note?: string; paymentKind?: 'payment' | 'deposit' }) => Promise<CustomerPayment>
+  createCustomerPayment: (input: { customerId: number; amount: number; note?: string }) => Promise<CustomerPayment>
   getCustomerPayments: (customerId: number) => Promise<CustomerPayment[]>
 
   // Refunds

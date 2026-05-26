@@ -390,7 +390,7 @@ export function HistoryPage() {
             </div>
             {debtPayments > 0 && (
               <div>
-                <span className="text-sm text-gray-500">รับชำระ/มัดจำ</span>
+                <span className="text-sm text-gray-500">รับชำระหนี้</span>
                 <p className="text-lg font-semibold text-green-600">
                   {formatBaht(debtPayments)}
                 </p>

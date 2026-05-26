@@ -18,6 +18,15 @@ function getProductById(db: Database.Database, id: number): unknown {
   return db.prepare('SELECT * FROM products WHERE id = ?').get(id) ?? null
 }
 
+function isSubsequence(needle: string, haystack: string): boolean {
+  if (!needle) return true
+  let ni = 0
+  for (let hi = 0; hi < haystack.length && ni < needle.length; hi++) {
+    if (haystack[hi] === needle[ni]) ni++
+  }
+  return ni === needle.length
+}
+
 export function registerProductHandlers(): void {
   ipcMain.handle(
     'products:list',
@@ -147,18 +156,70 @@ export function registerProductHandlers(): void {
 
   ipcMain.handle('products:search', (_event, query: string) => {
     const db = getDb()
-    if (!query.trim()) return []
-    const term = `%${query.trim()}%`
-    return db
+    const q = (query ?? '').trim()
+    if (!q) return []
+
+    type SearchRow = {
+      id: number
+      name: string
+      description: string | null
+      cost_price: number
+      sale_price: number
+      stock_on_hand: number
+      exclude_from_profit: number
+      store_id: number
+      is_deleted: number
+      created_at: string
+      updated_at: string
+      recent_sold: number
+    }
+
+    const rows = db
       .prepare(
-        `SELECT *
-         FROM products
-         WHERE is_deleted = 0
-           AND (name LIKE ? OR description LIKE ?)
-         ORDER BY name
-         LIMIT 50`
+        `SELECT p.*,
+           COALESCE((
+             SELECT SUM(si.quantity)
+             FROM sale_items si
+             JOIN sales s ON s.id = si.sale_id
+             WHERE si.product_id = p.id
+               AND s.date >= datetime('now', '-7 days')
+           ), 0) AS recent_sold
+         FROM products p
+         WHERE p.is_deleted = 0`
       )
-      .all(term, term)
+      .all() as SearchRow[]
+
+    const needle = q.toLowerCase()
+    const scored = rows
+      .map((row) => {
+        const haystack = `${row.name} ${row.description ?? ''}`.toLowerCase()
+        const idx = haystack.indexOf(needle)
+        let matchScore = 0
+        if (idx !== -1) {
+          // Contiguous substring: highest priority, earlier-position wins
+          matchScore = 10000 - idx
+        } else if (isSubsequence(needle, haystack)) {
+          matchScore = 1000
+        }
+        return { row, matchScore }
+      })
+      .filter((x) => x.matchScore > 0)
+
+    scored.sort((a, b) => {
+      if (b.row.recent_sold !== a.row.recent_sold) {
+        return b.row.recent_sold - a.row.recent_sold
+      }
+      if (b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore
+      }
+      return a.row.name.localeCompare(b.row.name, 'th')
+    })
+
+    return scored.slice(0, 50).map((x) => {
+      const { recent_sold: _recent, ...product } = x.row
+      void _recent
+      return product
+    })
   })
 
   ipcMain.handle('products:delete', (_event, id: number) => {

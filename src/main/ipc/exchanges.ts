@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database'
 import { insertStockMovement } from './stock-movements'
+import { requirePositiveQuantity } from './sales'
 
 export function registerExchangeHandlers(): void {
   ipcMain.handle(
@@ -36,7 +37,7 @@ export function registerExchangeHandlers(): void {
         }[] = []
 
         for (const item of input.returnItems) {
-          if (item.quantity <= 0) continue
+          requirePositiveQuantity(item.quantity, 'จำนวนที่คืน')
 
           const saleItem = db
             .prepare('SELECT * FROM sale_items WHERE id = ? AND sale_id = ?')
@@ -108,6 +109,9 @@ export function registerExchangeHandlers(): void {
         }
 
         // === NEW SALE SIDE: validate stock and create new sale ===
+        for (const item of input.newItems) {
+          requirePositiveQuantity(item.quantity, 'จำนวนสินค้าใหม่')
+        }
         const newItemsTotal = input.newItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
         const newSaleResult = db

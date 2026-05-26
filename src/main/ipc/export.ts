@@ -468,12 +468,7 @@ export function registerExportHandlers(): void {
         `SELECT c.*,
           COALESCE(credit.total, 0) as total_credit,
           COALESCE(paid.total, 0) as total_paid,
-          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding,
-          CASE
-            WHEN COALESCE(paid.total, 0) > COALESCE(credit.total, 0)
-            THEN COALESCE(paid.total, 0) - COALESCE(credit.total, 0)
-            ELSE 0
-          END as deposit_balance
+          COALESCE(credit.total, 0) - COALESCE(paid.total, 0) as outstanding
         FROM customers c
         LEFT JOIN (
           SELECT customer_id, SUM(total_amount) as total
@@ -495,7 +490,6 @@ export function registerExportHandlers(): void {
       total_credit: number
       total_paid: number
       outstanding: number
-      deposit_balance: number
     }[]
 
     const header = toCsvRow([
@@ -504,9 +498,8 @@ export function registerExportHandlers(): void {
       'เบอร์โทร',
       'ที่อยู่',
       'ยอดเชื่อทั้งหมด',
-      'ชำระ/มัดจำแล้ว',
-      'คงค้าง',
-      'มัดจำคงเหลือ'
+      'ชำระแล้ว',
+      'คงค้าง'
     ])
     const rows = customers.map((c) =>
       toCsvRow([
@@ -516,8 +509,7 @@ export function registerExportHandlers(): void {
         c.address,
         c.total_credit,
         c.total_paid,
-        Math.max(0, c.outstanding),
-        c.deposit_balance
+        Math.max(0, c.outstanding)
       ])
     )
 
