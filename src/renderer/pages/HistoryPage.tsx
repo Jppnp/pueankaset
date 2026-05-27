@@ -179,6 +179,37 @@ export function HistoryPage() {
     [getDateRange, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes]
   )
 
+  const handleDelete = useCallback(
+    async (saleId: number) => {
+      const confirmed = window.confirm(
+        `ต้องการลบใบเสร็จ #${saleId} อย่างถาวรหรือไม่?\nระบบจะคืนสต๊อกสินค้าที่ยังไม่ได้คืน และไม่สามารถย้อนกลับได้`
+      )
+      if (!confirmed) return
+
+      const result = await window.api.deleteSale(saleId)
+      if (!result.success) {
+        alert(`ลบไม่สำเร็จ: ${result.error}`)
+        return
+      }
+
+      setSelectedId(null)
+      setDetail(null)
+      const range = getDateRange()
+      fetchSales({
+        page: sales.page,
+        pageSize,
+        dateFrom: range.from,
+        dateTo: range.to,
+        storeId: selectedStoreId,
+        itemId: selectedItemId,
+        deliveryStatus: selectedDeliveryStatus,
+        paymentTypes: selectedPaymentTypes
+      })
+      fetchProfit(range.from, range.to, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes)
+    },
+    [fetchSales, fetchProfit, getDateRange, sales.page, pageSize, selectedStoreId, selectedItemId, selectedDeliveryStatus, selectedPaymentTypes]
+  )
+
   const handleSaleChange = useCallback(() => {
     // Re-fetch the detail, sales list, and profit summary after sale-level edits.
     if (selectedId) {
@@ -370,6 +401,7 @@ export function HistoryPage() {
             onRefundSuccess={handleSaleChange}
             onDeliveryStatusChange={handleSaleChange}
             onPaymentTypeChange={handleSaleChange}
+            onDelete={isOwner ? handleDelete : undefined}
           />
         </div>
       </div>

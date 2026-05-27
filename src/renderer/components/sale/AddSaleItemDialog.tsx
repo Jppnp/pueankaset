@@ -64,21 +64,16 @@ export function AddSaleItemDialog({ open, sale, onClose, onSuccess }: AddSaleIte
     return Number.isInteger(parsed) ? parsed : 0
   }, [quantityInput])
 
-  const quantityError = selectedProduct && quantity > selectedProduct.stock_on_hand
-    ? `คงเหลือ ${selectedProduct.stock_on_hand} ชิ้น`
-    : null
   const lineTotal = selectedProduct && quantity > 0 ? selectedProduct.sale_price * quantity : 0
   const updatedTotal = sale ? sale.total_amount + lineTotal : lineTotal
   const canSubmit = Boolean(
     sale &&
     selectedProduct &&
     quantity > 0 &&
-    quantity <= selectedProduct.stock_on_hand &&
     !submitting
   )
 
   const handleSelectProduct = (product: Product) => {
-    if (product.stock_on_hand <= 0) return
     setSelectedProduct(product)
     setQuantityInput('1')
     setQuery('')
@@ -157,31 +152,27 @@ export function AddSaleItemDialog({ open, sale, onClose, onSuccess }: AddSaleIte
           )}
           {results.length > 0 && (
             <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-              {results.map((product) => {
-                const outOfStock = product.stock_on_hand <= 0
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => handleSelectProduct(product)}
-                    disabled={outOfStock}
-                    className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 text-left text-sm transition-colors last:border-b-0 hover:bg-green-50 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-gray-900">{product.name}</span>
-                      {product.description && (
-                        <span className="block truncate text-xs text-gray-500">{product.description}</span>
-                      )}
+              {results.map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => handleSelectProduct(product)}
+                  className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 text-left text-sm transition-colors last:border-b-0 hover:bg-green-50"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-gray-900">{product.name}</span>
+                    {product.description && (
+                      <span className="block truncate text-xs text-gray-500">{product.description}</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block font-semibold text-green-700">{formatBaht(product.sale_price)}</span>
+                    <span className={product.stock_on_hand <= 0 ? 'text-xs text-red-500' : 'text-xs text-gray-400'}>
+                      คงเหลือ {product.stock_on_hand}
                     </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block font-semibold text-green-700">{formatBaht(product.sale_price)}</span>
-                      <span className={outOfStock ? 'text-xs text-red-500' : 'text-xs text-gray-400'}>
-                        คงเหลือ {product.stock_on_hand}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -210,7 +201,6 @@ export function AddSaleItemDialog({ open, sale, onClose, onSuccess }: AddSaleIte
                 <input
                   type="number"
                   min={1}
-                  max={selectedProduct.stock_on_hand}
                   value={quantityInput}
                   onChange={(e) => setQuantityInput(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -221,9 +211,6 @@ export function AddSaleItemDialog({ open, sale, onClose, onSuccess }: AddSaleIte
                 <p className="text-lg font-bold text-green-700">{formatBaht(lineTotal)}</p>
               </div>
             </div>
-            {quantityError && (
-              <p className="mt-2 text-xs text-red-600">{quantityError}</p>
-            )}
           </div>
         )}
 

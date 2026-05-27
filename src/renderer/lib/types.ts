@@ -121,6 +121,7 @@ export interface Sale {
   total_amount: number
   items_total?: number
   card_fee_amount?: number
+  refunded_total?: number
   remark: string | null
   seller_role: Role
   customer_id: number | null
@@ -396,6 +397,7 @@ export interface ElectronAPI {
     paymentTypes?: PaymentType[]
   }) => Promise<PaginatedResult<Sale>>
   getSaleDetail: (id: number) => Promise<SaleWithItems | null>
+  deleteSale: (id: number) => Promise<{ success: boolean; error?: string }>
   updateSaleDeliveryStatus: (id: number, deliveryStatus: DeliveryStatus) => Promise<{ success: boolean; deliveryStatus: DeliveryStatus }>
   updateSalePaymentType: (id: number, paymentType: PaymentType) => Promise<UpdateSalePaymentTypeResult>
   getProfitSummary: (

@@ -20,8 +20,10 @@ export function OrderList({ sales, selectedId, onSelect, showItemNames = false, 
   return (
     <div className="divide-y" role="list" aria-label="รายการขาย">
       {sales.map((sale) => {
-        const historyTotal = sale.items_total ?? sale.total_amount
-        const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - historyTotal)
+        const grossTotal = sale.items_total ?? sale.total_amount
+        const refundedTotal = sale.refunded_total ?? 0
+        const historyTotal = Math.max(0, grossTotal - refundedTotal)
+        const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - grossTotal)
 
         return (
           <button

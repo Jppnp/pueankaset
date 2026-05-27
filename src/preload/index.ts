@@ -46,6 +46,7 @@ const api = {
     paymentTypes?: string[]
   }) => ipcRenderer.invoke('sales:list', params),
   getSaleDetail: (id: number) => ipcRenderer.invoke('sales:detail', id),
+  deleteSale: (id: number) => ipcRenderer.invoke('sales:delete', id),
   updateSaleDeliveryStatus: (id: number, deliveryStatus: string) =>
     ipcRenderer.invoke('sales:update-delivery-status', id, deliveryStatus),
   updateSalePaymentType: (id: number, paymentType: string) =>

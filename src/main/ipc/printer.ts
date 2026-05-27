@@ -277,7 +277,8 @@ export function registerPrinterHandlers(): void {
 
       const items = db
         .prepare(
-          `SELECT si.*, p.name as product_name, p.description as product_description
+          `SELECT si.*, p.name as product_name, p.description as product_description,
+            COALESCE((SELECT SUM(ri.quantity) FROM refund_items ri WHERE ri.sale_item_id = si.id), 0) as refunded_qty
            FROM sale_items si
            JOIN products p ON p.id = si.product_id
            WHERE si.sale_id = ?`
@@ -287,18 +288,31 @@ export function registerPrinterHandlers(): void {
         product_description: string | null
         quantity: number
         price: number
+        refunded_qty: number
       }[]
 
-      const receipt = buildReceipt(
-        sale,
-        items.map((i) => ({
+      const refunded = db
+        .prepare(
+          `SELECT COALESCE(SUM(ri.quantity * ri.price), 0) as total
+           FROM refund_items ri
+           JOIN refunds r ON r.id = ri.refund_id
+           WHERE r.sale_id = ?`
+        )
+        .get(saleId) as { total: number }
+
+      // Reprint reflects the current state: refunded quantities are removed and the
+      // total is reduced by what was refunded.
+      const netItems = items
+        .map((i) => ({
           product_name: i.product_name,
           description: i.product_description,
-          quantity: i.quantity,
+          quantity: i.quantity - i.refunded_qty,
           price: i.price
-        })),
-        receiptHeader
-      )
+        }))
+        .filter((i) => i.quantity > 0)
+      const netTotal = Math.round(Math.max(0, sale.total_amount - refunded.total) * 100) / 100
+
+      const receipt = buildReceipt({ ...sale, total_amount: netTotal }, netItems, receiptHeader)
       const config = getPrinterConfig(db, getDefaultPrinterMode())
       validatePrinterConfig(config)
 

@@ -11,6 +11,7 @@ interface OrderDetailProps {
   onRefundSuccess?: () => void
   onDeliveryStatusChange?: () => void
   onPaymentTypeChange?: () => void
+  onDelete?: (saleId: number) => void
 }
 
 const DEFAULT_CARD_FEE_PERCENT = 5
@@ -34,7 +35,8 @@ export function OrderDetail({
   onPrint,
   onRefundSuccess,
   onDeliveryStatusChange,
-  onPaymentTypeChange
+  onPaymentTypeChange,
+  onDelete
 }: OrderDetailProps) {
   const [showRefund, setShowRefund] = useState(false)
   const [showExchange, setShowExchange] = useState(false)
@@ -128,8 +130,11 @@ export function OrderDetail({
   }
 
   const deliveryStatus = sale.delivery_status ?? 'none'
-  const historyTotal = sale.items_total ?? sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - historyTotal)
+  const grossTotal = sale.items_total ?? sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const refundedTotal = sale.refunded_total ?? (sale.refunds?.reduce((sum, r) => sum + r.total_amount, 0) ?? 0)
+  const historyTotal = Math.max(0, grossTotal - refundedTotal)
+  const cardFee = sale.card_fee_amount ?? Math.max(0, sale.total_amount - grossTotal)
+  const netPaymentTotal = Math.max(0, sale.total_amount - refundedTotal)
   const paymentChanged = selectedPaymentType !== sale.payment_type
   const selectedCardFee = selectedPaymentType === 'card' ? calcCardFee(historyTotal, cardFeePercent) : 0
   const selectedPaymentTotal = historyTotal + selectedCardFee
@@ -164,6 +169,14 @@ export function OrderDetail({
           >
             พิมพ์ใบเสร็จ
           </button>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(sale.id)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              ลบถาวร
+            </button>
+          )}
         </div>
       </div>
 
@@ -257,9 +270,29 @@ export function OrderDetail({
             })}
           </tbody>
           <tfoot>
-            {cardFee > 0 && (
+            {refundedTotal > 0 && (
               <>
                 <tr className="border-t-2">
+                  <td colSpan={3} className="px-4 pt-3 pb-1 text-right text-sm text-gray-500">
+                    รวมก่อนคืนสินค้า
+                  </td>
+                  <td className="px-4 pt-3 pb-1 text-right text-sm text-gray-500">
+                    {formatBaht(grossTotal)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="px-4 py-1 text-right text-sm text-red-600">
+                    หักคืนสินค้า
+                  </td>
+                  <td className="px-4 py-1 text-right text-sm text-red-600">
+                    -{formatBaht(refundedTotal)}
+                  </td>
+                </tr>
+              </>
+            )}
+            {cardFee > 0 && (
+              <>
+                <tr className={refundedTotal > 0 ? '' : 'border-t-2'}>
                   <td colSpan={3} className="px-4 pt-3 pb-1 text-right text-sm text-gray-500">
                     ค่าธรรมเนียมบัตร (ไม่รวมยอดประวัติ)
                   </td>
@@ -272,12 +305,12 @@ export function OrderDetail({
                     ยอดชำระผ่านบัตร
                   </td>
                   <td className="px-4 py-1 text-right text-sm text-gray-500">
-                    {formatBaht(sale.total_amount)}
+                    {formatBaht(netPaymentTotal)}
                   </td>
                 </tr>
               </>
             )}
-            <tr className={cardFee > 0 ? 'border-t' : 'border-t-2'}>
+            <tr className={cardFee > 0 || refundedTotal > 0 ? 'border-t' : 'border-t-2'}>
               <td colSpan={3} className="px-4 py-3 text-right font-semibold">
                 รวมสินค้า
               </td>

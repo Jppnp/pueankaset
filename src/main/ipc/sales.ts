@@ -246,9 +246,6 @@ export function registerSaleHandlers(): void {
         if (product.is_deleted) {
           throw new Error(`สินค้า "${product.name}" ไม่พร้อมขาย`)
         }
-        if (product.stock_on_hand < quantity) {
-          throw new Error(`สินค้า "${product.name}" คงเหลือไม่พอ (เหลือ ${product.stock_on_hand} ชิ้น)`)
-        }
 
         const lineTotal = roundMoney(product.sale_price * quantity)
         const updatedTotal = roundMoney(sale.total_amount + lineTotal)
@@ -466,6 +463,12 @@ export function registerSaleHandlers(): void {
               FROM sale_items si
               WHERE si.sale_id = s.id
             ), 0) as items_total,
+            COALESCE((
+              SELECT SUM(ri.price * ri.quantity)
+              FROM refund_items ri
+              JOIN refunds r ON r.id = ri.refund_id
+              WHERE r.sale_id = s.id
+            ), 0) as refunded_total,
             EXISTS (SELECT 1 FROM refunds r WHERE r.sale_id = s.id) as has_refund,
             EXISTS (SELECT 1 FROM exchanges e WHERE e.original_sale_id = s.id) as has_exchange,
             (
@@ -532,6 +535,19 @@ export function registerSaleHandlers(): void {
       items: getRefundItems.all(r.id)
     }))
 
+    const refundedTotal = roundMoney(
+      (
+        db
+          .prepare(
+            `SELECT COALESCE(SUM(ri.quantity * ri.price), 0) as total
+             FROM refund_items ri
+             JOIN refunds r ON r.id = ri.refund_id
+             WHERE r.sale_id = ?`
+          )
+          .get(id) as { total: number }
+      ).total
+    )
+
     // Fetch exchanges
     const exchanges = db
       .prepare('SELECT * FROM exchanges WHERE original_sale_id = ? ORDER BY date DESC')
@@ -561,10 +577,93 @@ export function registerSaleHandlers(): void {
       ...sale,
       items_total: itemsTotal,
       card_fee_amount: cardFeeAmount,
+      refunded_total: refundedTotal,
       items,
       refunds: refundsWithItems,
       exchanges: exchangesWithDetails
     }
+  })
+
+  ipcMain.handle('sales:delete', (_event, id: number) => {
+    const db = getDb()
+
+    const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as
+      | { id: number; customer_id: number | null; payment_type: string }
+      | undefined
+    if (!sale) {
+      return { success: false, error: 'ไม่พบรายการขาย' }
+    }
+
+    // Sales tangled in an exchange share refunds and a generated sale, so deleting
+    // one would orphan the other. Require the exchange be handled separately.
+    const exchange = db
+      .prepare('SELECT id FROM exchanges WHERE original_sale_id = ? OR new_sale_id = ? LIMIT 1')
+      .get(id, id)
+    if (exchange) {
+      return {
+        success: false,
+        error: 'ไม่สามารถลบใบเสร็จที่มีการเปลี่ยนสินค้าได้'
+      }
+    }
+
+    const doDelete = db.transaction(() => {
+      const items = db
+        .prepare(
+          `SELECT si.id, si.product_id, si.quantity,
+            COALESCE((SELECT SUM(ri.quantity) FROM refund_items ri WHERE ri.sale_item_id = si.id), 0) as refunded_qty
+           FROM sale_items si WHERE si.sale_id = ?`
+        )
+        .all(id) as { id: number; product_id: number; quantity: number; refunded_qty: number }[]
+
+      const restoreStock = db.prepare(
+        "UPDATE products SET stock_on_hand = stock_on_hand + ?, updated_at = datetime('now') WHERE id = ?"
+      )
+
+      for (const item of items) {
+        const netQty = item.quantity - item.refunded_qty
+        if (netQty <= 0) continue
+        const product = db
+          .prepare('SELECT stock_on_hand FROM products WHERE id = ?')
+          .get(item.product_id) as { stock_on_hand: number } | undefined
+        if (!product) continue
+        restoreStock.run(netQty, item.product_id)
+        insertStockMovement(db, {
+          productId: item.product_id,
+          type: 'in',
+          quantity: netQty,
+          stockBefore: product.stock_on_hand,
+          stockAfter: product.stock_on_hand + netQty,
+          reason: `ลบใบเสร็จ #${id}`,
+          referenceType: 'sale-delete',
+          referenceId: id,
+          createdBy: 'owner'
+        })
+      }
+
+      // Undo debt adjustments that refunds created for a credit sale.
+      const refunds = db.prepare('SELECT id FROM refunds WHERE sale_id = ?').all(id) as {
+        id: number
+      }[]
+      if (sale.customer_id) {
+        const deleteAdjustment = db.prepare(
+          "DELETE FROM customer_payments WHERE customer_id = ? AND payment_kind = 'adjustment' AND note LIKE ?"
+        )
+        for (const refund of refunds) {
+          deleteAdjustment.run(sale.customer_id, `%คืนสินค้า #${refund.id})%`)
+        }
+      }
+
+      db.prepare(
+        'DELETE FROM refund_items WHERE refund_id IN (SELECT id FROM refunds WHERE sale_id = ?)'
+      ).run(id)
+      db.prepare('DELETE FROM refunds WHERE sale_id = ?').run(id)
+      db.prepare('DELETE FROM sale_items WHERE sale_id = ?').run(id)
+      db.prepare('DELETE FROM sales WHERE id = ?').run(id)
+
+      return { success: true }
+    })
+
+    return doDelete()
   })
 
   ipcMain.handle(
