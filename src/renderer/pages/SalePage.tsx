@@ -73,6 +73,19 @@ export function SalePage() {
   }, [query])
 
   useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        if (sale.items.length > 0 && !showCheckout) {
+          setShowCheckout(true)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [sale.items.length, showCheckout])
+
+  useEffect(() => {
     if (focusedResultIndex !== null && focusedResultIndex >= results.length) {
       setFocusedResultIndex(results.length > 0 ? results.length - 1 : null)
     }

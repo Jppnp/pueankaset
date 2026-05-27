@@ -120,6 +120,18 @@ export function CheckoutDialog({
     }
   }
 
+  useEffect(() => {
+    if (!open) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        void handleConfirm()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [open, handleConfirm])
+
   return (
     <Modal open={open} onClose={onClose} title="ชำระเงิน">
       <div className="space-y-4">
