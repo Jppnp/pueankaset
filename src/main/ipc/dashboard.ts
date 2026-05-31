@@ -8,7 +8,7 @@ export function registerDashboardHandlers(): void {
     (_event, dateFrom: string, dateTo: string, storeId?: number) => {
       const db = getDb()
 
-      const conditions: string[] = ['p.exclude_from_profit = 0']
+      const conditions: string[] = []
       const params: unknown[] = []
 
       conditions.push('s.date >= ?')
@@ -27,8 +27,8 @@ export function registerDashboardHandlers(): void {
         .prepare(
           `SELECT
             COALESCE(SUM(si.price * si.quantity), 0) as total_revenue,
-            COALESCE(SUM(si.cost_price * si.quantity), 0) as total_cost,
-            COALESCE(SUM(si.price * si.quantity) - SUM(si.cost_price * si.quantity), 0) as total_profit,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN si.cost_price * si.quantity ELSE 0 END), 0) as total_cost,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN (si.price - si.cost_price) * si.quantity ELSE 0 END), 0) as total_profit,
             COUNT(DISTINCT s.id) as sale_count
            FROM sales s
            JOIN sale_items si ON si.sale_id = s.id

@@ -47,6 +47,7 @@ export function HistoryPage() {
   const creditRevenue = profitSummary?.total_credit_revenue ?? 0
   const debtPayments = profitSummary?.total_debt_payments ?? 0
   const receivedAmount = profitSummary?.total_received_amount ?? paidRevenue
+  const profitExclusionNote = isOwner ? 'กำไร/ต้นทุนไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร' : ''
   const selectedStore = selectedStoreId ? stores.find((s) => s.id === selectedStoreId) : undefined
   const activeFilterNote = [
     selectedStore ? selectedStore.name : null,
@@ -470,9 +471,9 @@ export function HistoryPage() {
             )}
             <div className="text-xs text-gray-400 ml-auto">
               {activeFilterNote
-                ? `* แสดงเฉพาะ: ${activeFilterNote}`
-                : isOwner
-                  ? '* ไม่รวมสินค้าที่ตั้งค่าไม่นับกำไร'
+                ? `* แสดงเฉพาะ: ${activeFilterNote}${profitExclusionNote ? ` · ${profitExclusionNote}` : ''}`
+                : profitExclusionNote
+                  ? `* ${profitExclusionNote}`
                   : ''}
             </div>
           </div>

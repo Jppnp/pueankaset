@@ -682,7 +682,7 @@ export function registerSaleHandlers(): void {
       const deliveryStatus = toDeliveryStatusFilter(deliveryStatusInput)
       const paymentTypes = toPaymentTypeFilters(paymentTypeInput)
 
-      const conditions: string[] = ['p.exclude_from_profit = 0']
+      const conditions: string[] = []
       const whereParams: unknown[] = []
 
       if (dateFrom) {
@@ -707,13 +707,14 @@ export function registerSaleHandlers(): void {
       }
       addInCondition(conditions, whereParams, 's.payment_type', paymentTypes)
 
-      const where = `WHERE ${conditions.join(' AND ')}`
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
       const gross = db
         .prepare(
           `SELECT
             COALESCE(SUM(si.price * si.quantity), 0) as total_revenue,
-            COALESCE(SUM(si.cost_price * si.quantity), 0) as total_cost,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN si.price * si.quantity ELSE 0 END), 0) as profit_revenue,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN si.cost_price * si.quantity ELSE 0 END), 0) as total_cost,
             COALESCE(SUM(CASE WHEN s.payment_type != 'credit' THEN si.price * si.quantity ELSE 0 END), 0) as total_paid_revenue,
             COALESCE(SUM(CASE WHEN s.payment_type = 'credit' THEN si.price * si.quantity ELSE 0 END), 0) as total_credit_revenue,
             COUNT(DISTINCT s.id) as sale_count
@@ -724,6 +725,7 @@ export function registerSaleHandlers(): void {
         )
         .get(...whereParams) as {
           total_revenue: number
+          profit_revenue: number
           total_cost: number
           total_paid_revenue: number
           total_credit_revenue: number
@@ -731,7 +733,7 @@ export function registerSaleHandlers(): void {
         }
 
       // Subtract refunded amounts
-      const refundConditions: string[] = ['p.exclude_from_profit = 0']
+      const refundConditions: string[] = []
       const refundParams: unknown[] = []
       if (dateFrom) { refundConditions.push('s.date >= ?'); refundParams.push(dateFrom) }
       if (dateTo) { refundConditions.push('s.date <= ?'); refundParams.push(dateTo) }
@@ -745,13 +747,14 @@ export function registerSaleHandlers(): void {
         refundParams.push(deliveryStatus)
       }
       addInCondition(refundConditions, refundParams, 's.payment_type', paymentTypes)
-      const refundWhere = `WHERE ${refundConditions.join(' AND ')}`
+      const refundWhere = refundConditions.length > 0 ? `WHERE ${refundConditions.join(' AND ')}` : ''
 
       const refunded = db
         .prepare(
           `SELECT
             COALESCE(SUM(ri.price * ri.quantity), 0) as refund_revenue,
-            COALESCE(SUM(si.cost_price * ri.quantity), 0) as refund_cost,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN ri.price * ri.quantity ELSE 0 END), 0) as profit_refund_revenue,
+            COALESCE(SUM(CASE WHEN p.exclude_from_profit = 0 THEN si.cost_price * ri.quantity ELSE 0 END), 0) as refund_cost,
             COALESCE(SUM(CASE WHEN s.payment_type != 'credit' THEN ri.price * ri.quantity ELSE 0 END), 0) as paid_refund_revenue,
             COALESCE(SUM(CASE WHEN s.payment_type = 'credit' THEN ri.price * ri.quantity ELSE 0 END), 0) as credit_refund_revenue
            FROM refund_items ri
@@ -763,12 +766,14 @@ export function registerSaleHandlers(): void {
         )
         .get(...refundParams) as {
           refund_revenue: number
+          profit_refund_revenue: number
           refund_cost: number
           paid_refund_revenue: number
           credit_refund_revenue: number
         }
 
       const total_revenue = roundMoney(gross.total_revenue - refunded.refund_revenue)
+      const profit_revenue = roundMoney(gross.profit_revenue - refunded.profit_refund_revenue)
       const total_cost = roundMoney(gross.total_cost - refunded.refund_cost)
       const total_paid_revenue = roundMoney(gross.total_paid_revenue - refunded.paid_refund_revenue)
       const total_credit_revenue = roundMoney(gross.total_credit_revenue - refunded.credit_refund_revenue)
@@ -799,7 +804,7 @@ export function registerSaleHandlers(): void {
         total_debt_payments = roundMoney(debtPayments.total)
       }
 
-      const totalProfit = roundMoney(total_revenue - total_cost)
+      const totalProfit = roundMoney(profit_revenue - total_cost)
       const total_received_amount = roundMoney(total_paid_revenue + total_debt_payments)
 
       return {
