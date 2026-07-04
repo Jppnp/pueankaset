@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # postinstall runs electron-rebuild, so better-sqlite3 is compiled for
+      # Electron's ABI; npm test runs vitest through Electron's Node runtime
+      # (ELECTRON_RUN_AS_NODE) to match.
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build

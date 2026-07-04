@@ -2,6 +2,7 @@
 
 **A point-of-sale desktop app for an agricultural supply shop in Thailand — built solo, and used in production every day since March 2026.**
 
+[![CI](https://github.com/Jppnp/pueankaset/actions/workflows/ci.yml/badge.svg)](https://github.com/Jppnp/pueankaset/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/jppnp/pueankaset)](https://github.com/jppnp/pueankaset/releases)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-blue)
 ![Stack](https://img.shields.io/badge/stack-Electron%20·%20React%20·%20SQLite-green)
@@ -67,6 +68,7 @@ Electron · React 18 · TypeScript · better-sqlite3 · Tailwind CSS · electron
 ```bash
 npm install
 npm run dev        # dev mode with hot reload
+npm test           # run the test suite (Vitest against the real SQLite schema)
 npm run build      # build renderer/main/preload
 npm run package    # package a distributable
 ```
